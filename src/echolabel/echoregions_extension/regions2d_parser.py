@@ -8,7 +8,7 @@ import pandas as pd
 from echoregions.utils.io import check_file
 
 from ..config.cache import CachePathsConfig
-from ..manifest import ImagesDatasetManifest
+from ..core.manifest import ImagesDatasetManifest
 
 CUSTOM_COLUMNS = [
     "region_id",

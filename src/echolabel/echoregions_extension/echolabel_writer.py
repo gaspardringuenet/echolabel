@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from echoregions.regions2d import Regions2D
 
-from ..manifest import ImagesDatasetManifest
+from ..core.manifest import ImagesDatasetManifest
 
 
 def regions2d_to_labelme(

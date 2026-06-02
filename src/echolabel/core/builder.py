@@ -5,9 +5,9 @@ from typing import List
 import xarray as xr
 from tqdm import tqdm
 
+from ..utils.images import normalize_sv_array, sv_norm2image
 from .dataloader import open_dataset
 from .manifest import ImageMetadata, ImagesDatasetManifest
-from .utils.images import normalize_sv_array, sv_norm2image
 
 # ---- New function working with manifest
 

@@ -8,10 +8,10 @@ import echoregions as er
 import platformdirs
 from echoregions.regions2d import Regions2D
 
-from echolabel.builder import build_images_dataset
 from echolabel.config.cache import CachePathsConfig
+from echolabel.core.builder import build_images_dataset
+from echolabel.core.manifest import ImagesDatasetManifest
 from echolabel.echoregions_extension import echolabel_writer, regions2d_parser
-from echolabel.manifest import ImagesDatasetManifest
 
 
 class EcholabelApp:
