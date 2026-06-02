@@ -1,0 +1,16 @@
+channels_frequency_nominal:
+  - 38000
+  - 70000
+  - 120000
+
+frame_width: 10000
+
+range_samples_slice:
+  start: 0
+  stop: null
+
+vmin: -90.0
+vmax: -50.0
+echogram_cmap: "RGB"
+
+reuse_images: true

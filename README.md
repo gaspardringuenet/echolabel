@@ -48,3 +48,4 @@ Here we propose to :
 ### Other
 
 - Labelme config - edit the Labelme config file to modify part of the GUI (e.g., remove functionalities which are useless / cannot be translated reliably into Echoregions)
+- Useful modifications to Labelme - nearest-neighbour image interpolatio (would require forking)

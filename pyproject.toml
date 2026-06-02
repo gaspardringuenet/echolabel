@@ -28,6 +28,8 @@ dependencies = [
     "xarray",
     "platformdirs>=4.9.4",
     "rich>=14.3.3",
+    "echoregions>=0.2.3",
+    "click>=8.3.2",
 ]
 
 [project.optional-dependencies]
@@ -37,16 +39,10 @@ dev = [
 ]
 
 [project.scripts]
-echolabel = "echolabel.main:main"
+echolabel = "echolabel.cli:cli"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
-[tool.setuptools.package-data]
-echolabel = [
-    "registry/sql/schema.sql", 
-    "echotypes/assets/**/*",
-    "*.svg", 
-    "*.css"
-]
-
+[tool.ruff]
+line-length = 120
