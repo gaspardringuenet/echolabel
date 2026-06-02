@@ -1,5 +1,7 @@
 # `echolabel` - Minimalist Interactive Echogram Data Extraction Tools
 
+![](image.png)
+
 ## The [Echoregions](https://echoregions.readthedocs.io/en/latest/index.html)-based approach
 
 This branch is dedicated to refactoring the first version of `echolabel` (currently the 'main' branch). The goal is to switch from a monolithic / standalone app to increase modularity through `echostack` dependencies. Refactoring will first primarily focus on the *labelling* process (drawing polygons or "shapes" on echograms and fetching underlying data). The *extraction* process (performing segmentation tasks on shapes using an interactive Dash app) will be refactored later on.

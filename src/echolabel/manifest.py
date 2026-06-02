@@ -64,10 +64,6 @@ class ImageMetadata:
 
         return ping_axis_values[x_pixel], range_axis_values[y_pixel]
 
-    # def get_real_bbox(self, output_dir: Path):
-    #     ping_axis_values, range_axis_values = self.load_coordinates(output_dir)
-    #     return ping_axis_values[0], ping_axis_values[-1], range_axis_values[0], range_axis_values[-1]
-
 
 @dataclass
 class ImagesDatasetManifest:

@@ -1,6 +1,7 @@
 import glob
 import json
 from pathlib import Path
+from typing import Tuple
 
 import numpy as np
 import pandas as pd
@@ -107,6 +108,9 @@ def parse_labelme(
         top = np.min(depth)
         bottom = np.max(depth)
 
+        if shape["shape_type"] == "rectangle":
+            time, depth = _format_rectangle(left, right, top, bottom)
+
         # Create row
         row = {
             # Minimal requirements for Regions2D methods (except .to_evr)
@@ -136,3 +140,17 @@ def parse_labelme(
     df = pd.DataFrame(rows)
 
     return df
+
+
+def _format_rectangle(
+    left: np.datetime64, right: np.datetime64, top: float, bottom: float
+) -> Tuple[np.ndarray[np.datetime64], np.ndarray[float]]:
+    """
+    Format rectangle to be EVR compatible: a list of points in order:
+        1    4
+        2 -> 3
+    """
+    time = np.array([left, left, right, right])
+    depth = np.array([top, bottom, bottom, top])
+
+    return time, depth

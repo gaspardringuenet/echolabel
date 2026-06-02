@@ -83,7 +83,18 @@ def regions2d_to_labelme(
                 x_pixels = np.clip(x_pixels, 0, len(time_coord) - 1)
                 y_pixels = np.clip(y_pixels, 0, len(depth_coord) - 1)
 
-                points = [[float(x), float(y)] for x, y in zip(x_pixels, y_pixels)]
+                # Shape type
+                region_creation_type = row.get("region_creation_type", None)
+
+                if int(region_creation_type) == 3:  # rectangle
+                    shape_type = "rectangle"
+                    points = [
+                        [float(np.min(x_pixels)), float(np.min(y_pixels))],
+                        [float(np.max(x_pixels)), float(np.max(y_pixels))],
+                    ]
+                else:
+                    shape_type = "polygon"
+                    points = [[float(x), float(y)] for x, y in zip(x_pixels, y_pixels)]
 
                 # Build shape metadata
                 shape = {
@@ -91,7 +102,7 @@ def regions2d_to_labelme(
                     "points": points,
                     "group_id": None if pd.isna(row.get("group_id")) else int(row.get("group_id")),
                     "description": "" if pd.isna(row.get("description")) else row.get("description", ""),
-                    "shape_type": row.get("shape_type", "polygon"),
+                    "shape_type": shape_type,
                     "mask": None,
                     "flags": {},
                 }

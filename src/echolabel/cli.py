@@ -31,7 +31,7 @@ def cache():
 @click.option("--source", "-s", required=True, type=click.Path(exists=True, path_type=Path))
 @click.option("--output", "-o", required=True, type=click.Path(path_type=Path))
 @click.option("--config", "-c", type=click.Path(exists=True, path_type=Path))
-@click.option("--freqs-hz", multiple=True, type=float)
+@click.option("--freqs-hz", "-f", multiple=True, type=click.FLOAT)
 @click.option("--frame-width", type=int)
 @click.option("--vmin", type=float)
 @click.option("--vmax", type=float)
