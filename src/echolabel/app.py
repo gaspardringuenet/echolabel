@@ -15,6 +15,8 @@ from echolabel.echoregions_extension import echolabel_writer, regions2d_parser
 
 
 class EcholabelApp:
+    """Container class for the Echolabel processing"""
+
     def __init__(self, cache_dir: Path | None = None):
 
         self.name = "echolabel_v2"
@@ -22,6 +24,15 @@ class EcholabelApp:
         self.cache.mkdir()
 
     def run(self, output: str | Path, reuse_images: bool, **builder_params):
+        """Run the Labelme wrapper.
+
+        Parameters
+        ----------
+        output : str | Path
+            Path to the regions .csv file.
+        reuse_images : bool
+            Whether to reuse the existing images dataset in cache.
+        """
 
         output = Path(output)
         manifest = _prepare_labelme_dataset(self.cache, reuse_images, **builder_params)
