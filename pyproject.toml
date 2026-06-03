@@ -48,5 +48,8 @@ echolabel = "echolabel.cli:cli"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+echolabel = ["config/config.default.yaml"]
+
 [tool.ruff]
 line-length = 120
