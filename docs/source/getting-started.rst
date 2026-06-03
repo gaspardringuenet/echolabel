@@ -9,7 +9,7 @@ Installation
 
 .. code-block:: bash
 
-    $ uv pip install "git+https://github.com/gaspardringuenet/echolabel.git"
+    $ pip install "git+https://github.com/gaspardringuenet/echolabel.git"
 
 
 Running demo

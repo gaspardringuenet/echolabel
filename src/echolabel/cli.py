@@ -23,8 +23,18 @@ def init():
 @cli.command()
 def cache():
     """Show default cache directory"""
-    app = EcholabelApp()
+    cfg = Config.load()
+    app = EcholabelApp(cfg)
     click.echo(f"Default cache directory - {app.cache.root}")
+
+
+@cli.command()
+def demo():
+    """Run echolabel in demo mode"""
+    cfg = Config.load()
+    app = EcholabelApp(cfg)
+
+    ...
 
 
 @cli.command()
@@ -71,28 +81,11 @@ def process(
     cfg.update(cli_overrides)
 
     # Run application
-    app = EcholabelApp()
-
-    print(cfg.echogram_cmap)
-
-    builder_params = dict(
-        source=source,
-        output_dir=app.cache.img_dataset,
-        freqs_hz=cfg.channels_frequency_nominal,
-        frame_width=cfg.frame_width,
-        range_samples_slice=cfg.range_samples_slice,
-        vmin=cfg.vmin,
-        vmax=cfg.vmax,
-        echogram_cmap=cfg.echogram_cmap,
-    )
+    app = EcholabelApp(cfg)
 
     click.echo(f"Processing {source} → {output}")
 
-    app.run(
-        output=output,
-        reuse_images=cfg.reuse_images,
-        **builder_params,
-    )
+    app.run(source, output)
 
     click.echo("Complete!")
 

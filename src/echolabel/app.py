@@ -3,12 +3,14 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
+from typing import Optional
 
 import echoregions as er
 import platformdirs
 from echoregions.regions2d import Regions2D
 
 from echolabel.config.cache import CachePathsConfig
+from echolabel.config.config import Config
 from echolabel.core.builder import build_images_dataset
 from echolabel.core.manifest import ImagesDatasetManifest
 from echolabel.echoregions_extension import echolabel_writer, regions2d_parser
@@ -17,13 +19,14 @@ from echolabel.echoregions_extension import echolabel_writer, regions2d_parser
 class EcholabelApp:
     """Container class for the Echolabel processing"""
 
-    def __init__(self, cache_dir: Path | None = None):
-
-        self.name = "echolabel_v2"
-        self.cache = CachePathsConfig(root=Path(platformdirs.user_cache_dir(self.name)))
+    def __init__(self, config: Config, cache_dir: Optional[Path] = None):
+        self.name = "echolabel"
+        self.cfg = config
+        cache_dir = cache_dir or Path(platformdirs.user_cache_dir(self.name))
+        self.cache = CachePathsConfig(root=cache_dir)
         self.cache.mkdir()
 
-    def run(self, output: str | Path, reuse_images: bool, **builder_params):
+    def run(self, source: str | Path, output: str | Path):
         """Run the Labelme wrapper.
 
         Parameters
@@ -34,8 +37,18 @@ class EcholabelApp:
             Whether to reuse the existing images dataset in cache.
         """
 
+        builder_params = dict(
+            source=source,
+            output_dir=self.cache.img_dataset,
+            freqs_hz=self.cfg.channels_frequency_nominal,
+            frame_width=self.cfg.frame_width,
+            range_samples_slice=self.cfg.range_samples_slice,
+            vmin=self.cfg.vmin,
+            vmax=self.cfg.vmax,
+            echogram_cmap=self.cfg.echogram_cmap,
+        )
         output = Path(output)
-        manifest = _prepare_labelme_dataset(self.cache, reuse_images, **builder_params)
+        manifest = _prepare_labelme_dataset(self.cache, self.cfg.reuse_images, **builder_params)
         _load_annotations(output, self.cache, manifest)
         _run_labelme(self.cache)
         _parse_to_csv(self.cache, manifest, output)

@@ -1,7 +1,4 @@
 channels_frequency_nominal:
-  - 38000
-  - 70000
-  - 120000
 
 frame_width: 10000
 
@@ -11,6 +8,6 @@ range_samples_slice:
 
 vmin: -90.0
 vmax: -50.0
-echogram_cmap: "RGB"
+echogram_cmap: "viridis"
 
-reuse_images: true
+reuse_images: false
