@@ -1,7 +1,3 @@
-===============
-Getting Started
-===============
-
 Installation
 ============
 
@@ -11,9 +7,4 @@ Installation
 
     $ pip install "git+https://github.com/gaspardringuenet/echolabel.git"
 
-
-Running demo
-============
-
-.. _PyPI: https://pypi.org
-.. _GitHub: https://github.com/gaspardringuenet/echolabel.git
+After installation the application can be triggered in the CLI by ``echolabel`` command.

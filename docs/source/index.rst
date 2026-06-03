@@ -18,7 +18,8 @@ with other marine acoustics pipelines.
    :maxdepth: 2
    :caption: Contents:
 
-   getting-started
+   Getting Started <getting-started/getting-started>
+   User Guide <user-guide/user-guide>
    API Reference <api/echolabel>
 
 

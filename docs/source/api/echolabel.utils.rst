@@ -9,10 +9,10 @@ echolabel.utils package
 Submodules
 ----------
 
-echolabel.utils.demo\_data module
----------------------------------
+echolabel.utils.demo module
+---------------------------
 
-.. automodule:: echolabel.utils.demo_data
+.. automodule:: echolabel.utils.demo
    :members:
    :show-inheritance:
    :undoc-members:
