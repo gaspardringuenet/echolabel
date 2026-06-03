@@ -1,9 +1,11 @@
+import os
 from pathlib import Path
 
 import click
 
 from echolabel.app import EcholabelApp
 from echolabel.config.config import Config, init_user_config
+from echolabel.utils.demo import download_demo_data
 
 
 @click.group()
@@ -29,12 +31,22 @@ def cache():
 
 
 @cli.command()
-def demo():
+@click.option("--output-dir", "-o", type=click.Path(path_type=Path))
+def demo(output_dir):
     """Run echolabel in demo mode"""
+
+    if not output_dir:
+        output_dir = Path(os.getcwd())
+
     cfg = Config.load()
     app = EcholabelApp(cfg)
 
-    ...
+    source = download_demo_data(output_dir)
+    output = output_dir / "regions.csv"
+
+    click.echo(f"Processing {source} → {output}")
+    app.run(source, output)
+    click.echo("Complete!")
 
 
 @cli.command()
@@ -84,9 +96,7 @@ def process(
     app = EcholabelApp(cfg)
 
     click.echo(f"Processing {source} → {output}")
-
     app.run(source, output)
-
     click.echo("Complete!")
 
 
