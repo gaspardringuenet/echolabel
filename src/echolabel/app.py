@@ -46,6 +46,7 @@ class EcholabelApp:
             vmin=self.cfg.vmin,
             vmax=self.cfg.vmax,
             echogram_cmap=self.cfg.echogram_cmap,
+            bg_color=self.cfg.bg_color,
         )
         output = Path(output)
         manifest = _prepare_labelme_dataset(self.cache, self.cfg.reuse_images, **builder_params)

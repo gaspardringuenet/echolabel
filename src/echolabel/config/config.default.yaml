@@ -9,5 +9,6 @@ range_samples_slice:
 vmin: -90.0
 vmax: -50.0
 echogram_cmap: "viridis"
+bg_color: "grey"
 
 reuse_images: false

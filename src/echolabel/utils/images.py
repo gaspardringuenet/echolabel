@@ -3,6 +3,8 @@ from typing import Sequence
 import matplotlib.pyplot as plt
 import numpy as np
 import xarray
+from matplotlib import colors
+from matplotlib.typing import ColorType
 from PIL import Image
 
 
@@ -44,7 +46,12 @@ def sv2array(
     return sv_array
 
 
-def normalize_sv_array(a: np.ndarray, vmin: float = None, vmax: float = None) -> np.ndarray:
+def normalize_sv_array(
+    a: np.ndarray,
+    vmin: float = None,
+    vmax: float = None,
+    bg_color: ColorType = "orange",
+) -> np.ndarray:
     """Normalizes array values to [0, 1]. If vmin (resp. vmax) is provided, values below vmin
     (resp. above vmax) are clipped to 0 (resp. 1). Else min and max values in a are used as
     defaults.
@@ -71,7 +78,10 @@ def normalize_sv_array(a: np.ndarray, vmin: float = None, vmax: float = None) ->
 
     a = (a - vmin) / (vmax - vmin)
     a = np.clip(a, 0, 1)
-    a = np.nan_to_num(a, nan=0)
+    all_channels_na = np.all(np.isnan(a), axis=-1, keepdims=True)  # when all channels are NA
+    a = np.nan_to_num(a, nan=0)  # disable channel when it is NA
+    bg_color = colors.to_rgba_array(bg_color)[0, :3]
+    a = np.where(all_channels_na, np.ones_like(a) * bg_color, a)  # but show as white where all channels are NA
 
     return a
 

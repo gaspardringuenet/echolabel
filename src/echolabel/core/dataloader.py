@@ -5,7 +5,7 @@ import xarray as xr
 
 # Required variable and dimensions in the dataset. Currently based on the MVBS format produced by Echopype v0.10.0
 REQUIRED_VARS = {"acoustic": "Sv", "channel": "frequency_nominal"}
-REQUIRED_DIMS = {"ping_time": "ping_time", "depth": "depth", "channel": "channel"}
+REQUIRED_DIMS = {"time": "ping_time", "depth": "depth", "channel": "channel"}
 
 
 def open_dataset(path: Path) -> xr.Dataset:
@@ -55,8 +55,8 @@ def _validate_dataset(ds: xr.Dataset) -> xr.Dataset:
     """Preprocess function to validate dataset structure."""
     for type, name in REQUIRED_VARS.items():
         if name not in ds.variables:
-            raise ValueError(f"Acoustic dataset must contain {name} variable.")
+            raise ValueError(f"Acoustic dataset must contain a {type} variable with name '{name}'.")
     for type, name in REQUIRED_DIMS.items():
         if name not in ds.dims:
-            raise ValueError(f"Acoustic dataset must contain {name} dimension.")
+            raise ValueError(f"Acoustic dataset must contain a {type} dimension with name '{name}'.")
     return ds

@@ -89,7 +89,14 @@ def build_images_dataset(
     return manifest
 
 
-def save_echogram_image(sv_da: xr.DataArray, outfile: Path, vmin: float, vmax: float, echogram_cmap: str):
+def save_echogram_image(
+    sv_da: xr.DataArray,
+    outfile: Path,
+    vmin: float,
+    vmax: float,
+    echogram_cmap: str,
+    bg_color: str,
+):
     """Computes an echogram image from acoustic data and saves it as png"""
 
     try:
@@ -98,7 +105,7 @@ def save_echogram_image(sv_da: xr.DataArray, outfile: Path, vmin: float, vmax: f
         sv_array = sv_da.transpose("depth", "ping_time")
 
     # Normalise values to [0, 1]
-    sv_norm = normalize_sv_array(sv_array, vmin, vmax)
+    sv_norm = normalize_sv_array(sv_array, vmin, vmax, bg_color)
 
     # Reshape and convert to PIL.Image by applying a color mapping
     img = sv_norm2image(sv_norm, echogram_cmap)

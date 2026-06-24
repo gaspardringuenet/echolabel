@@ -58,6 +58,7 @@ class Config:
     vmin: float
     vmax: float
     echogram_cmap: str
+    bg_color: str
     reuse_images: bool
 
     def update(self, overrides: dict) -> None:
