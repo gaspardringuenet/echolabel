@@ -10,26 +10,21 @@ readme = "README.md"
 authors = [{name = "Gaspard Ringuenet", email = "gaspard.ringuenet@proton.me"}]
 requires-python = ">=3.11"
 dependencies = [
-    "dash",
-    "dash-ag-grid",
-    "dask",
-    "flask",
+    "dask>=2026.3.0,<2026.4.0",
     "labelme==6.0.0",
-    "matplotlib",
-    "numpy",
-    "netcdf4",
-    "pandas",
-    "Pillow",
-    "plotly",
-    "requests",
-    "scikit-learn",
-    "scipy",
-    "tqdm",
-    "xarray",
+    "matplotlib>=3.10.8",
+    "numpy<=1.26.4",
+    "netcdf4>=1.7.3",
+    "pandas>=2.3.3",
+    "Pillow>=12.0.0",
+    "requests>=2.34.0",
+    "scipy<1.15.2",
+    "tqdm>=4.68.0",
+    "xarray>=2025.6.1",
     "platformdirs>=4.9.4",
-    "rich>=14.3.3",
     "echoregions>=0.2.3",
     "click>=8.3.2",
+    "zarr>=2.18.7",
 ]
 
 [project.optional-dependencies]

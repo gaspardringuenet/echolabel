@@ -5,7 +5,7 @@ from typing import List
 import xarray as xr
 from tqdm import tqdm
 
-from ..utils.images import normalize_sv_array, sv_norm2image
+from ..utils.images import sv_array2image  # , sv_norm2image, normalize_sv_array,
 from .dataloader import open_dataset
 from .manifest import ImageMetadata, ImagesDatasetManifest
 
@@ -99,16 +99,14 @@ def save_echogram_image(
 ):
     """Computes an echogram image from acoustic data and saves it as png"""
 
+    # Transpose and convert to np array
     try:
-        sv_array = sv_da.transpose("depth", "ping_time", "channel")
+        sv_array = sv_da.transpose("depth", "ping_time", "channel").values
     except ValueError:
-        sv_array = sv_da.transpose("depth", "ping_time")
+        sv_array = sv_da.transpose("depth", "ping_time").values
 
-    # Normalise values to [0, 1]
-    sv_norm = normalize_sv_array(sv_array, vmin, vmax, bg_color)
-
-    # Reshape and convert to PIL.Image by applying a color mapping
-    img = sv_norm2image(sv_norm, echogram_cmap)
+    # Convert array to PIL image by applying cmap and bg_color
+    img = sv_array2image(sv_array, vmin, vmax, echogram_cmap, bg_color)
 
     # Save
     img.save(outfile)

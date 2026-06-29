@@ -1,4 +1,4 @@
-from typing import Sequence
+from typing import Literal, Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -8,112 +8,87 @@ from matplotlib.typing import ColorType
 from PIL import Image
 
 
-def sv2array(
-    sv: xarray.DataArray,
-    time_idx_slice: slice = slice(0, 100),
-    depth_idx_slice: slice = slice(0, 100),
-    channels: float | Sequence[float] = (38.0, 70.0, 120.0),
-) -> np.ndarray:
-    """Converts a Sv xarray.DataArray into a numpy array for plotting.
-
-    Parameters
-    ----------
-    sv : xarray.DataArray
-        Acoustic volume backscattering DataArray with coordinates time, depth, channel (in any order)
-    time_idx_slice : slice, optional
-        Time dimension index slice, by default slice(0, 100)
-    depth_idx_slice : slice, optional
-        Depth dimension index slice, by default slice(0, 100)
-    channels : float | Sequence[float], optional
-        Frequency channels to select, by default (38., 70., 120.)
-
-    Returns
-    -------
-    np.ndarray
-        Numpy array with shape (depth, time) or (depth, time, channels)
-    """
-
-    if isinstance(channels, (tuple, list)) and len(channels) == 1:
-        channels = channels[0]
-
-    sv_array = (
-        sv.transpose("depth", "time", "channel")
-        .isel(time=time_idx_slice, depth=depth_idx_slice)
-        .sel(channel=channels)
-        .values
-    )
-
-    return sv_array
-
-
-def normalize_sv_array(
+def sv_array2image(
     a: np.ndarray,
     vmin: float = None,
     vmax: float = None,
-    bg_color: ColorType = "orange",
-) -> np.ndarray:
-    """Normalizes array values to [0, 1]. If vmin (resp. vmax) is provided, values below vmin
-    (resp. above vmax) are clipped to 0 (resp. 1). Else min and max values in a are used as
-    defaults.
+    echogram_cmap: str = "RGB",
+    bg_color: ColorType = "grey",
+) -> Image.Image:
+    """
+    Convert numpy array in shape (H, W) or (H, W, 3) into a PIL Image
 
     Parameters
     ----------
     a : np.ndarray
         Array
     vmin : float, optional
-        Minimal value, corresponding to 0, by default None
+        Minimal value for color mapping, by default None
     vmax : float, optional
-        Maximal value, corresponding to 1, by default None
+        Maximal value for color mapping, by default None
+    echogram_cmap : str, optional
+        Colormap for the image. 'RGB' is the only colormap accepted for (H, W, 3) array.
+        For (H, W) arrays, colormap argument must be a matplotlib colormap name, by default 'RGB'
+    bg_color : ColorType, optional
+        Background color to fill where data is missing, by default "grey"
 
     Returns
     -------
-    np.ndarray
-        Normalized array
+    Image.Image
+        Echogram image
+
+
+    Raises
+    ------
+    ValueError
+        When the number of channels is neither 0 nor 3, or when it doesn't correspond
+        to the provided colormap argument.
     """
 
+    # Handle missing vmin, vmax params
     if not vmin:
         vmin = a.min()
     if not vmax:
         vmax = a.max()
 
+    # Convert array values to (0, 1) range (use vmin, vmax and clip)
     a = (a - vmin) / (vmax - vmin)
     a = np.clip(a, 0, 1)
-    all_channels_na = np.all(np.isnan(a), axis=-1, keepdims=True)  # when all channels are NA
-    a = np.nan_to_num(a, nan=0)  # disable channel when it is NA
-    bg_color = colors.to_rgba_array(bg_color)[0, :3]
-    a = np.where(all_channels_na, np.ones_like(a) * bg_color, a)  # but show as white where all channels are NA
 
-    return a
+    # Get rgba vector for background color
+    bg_color = colors.to_rgba_array(bg_color)[0]
 
-
-def sv_norm2image(a: np.ndarray, echogram_cmap: str = "RGB") -> Image.Image:
-    """Converts numpy array in shape (H, W) or (H, W, 3) into a PIL Image.
-
-    Parameters
-    ----------
-    a : np.ndarray
-        Array
-    echogram_cmap : str, optional
-        Colormap for the image. 'RGB' is the only colormap accepted for (H, W, 3) array.
-        For (H, W) arrays, colormap argument must be a matplotlib colormap name, by default 'RGB'
-
-    Returns
-    -------
-    Image
-        Output image
-
-    Raises
-    ------
-    ValueError
-        Errors when the number of channels is neither 0 nor 3, or when it doesn't correspond
-        to the provided colormap argument.
-    """
-
+    # If array as 3 channels, convert to RGB echogram image
     if (len(a.shape) == 3) and (a.shape[2] == 3) and (echogram_cmap == "RGB"):
+        # Where all channels are NA --> apply bg_color
+        all_channels_na = np.all(np.isnan(a), axis=-1, keepdims=True)
+
+        # Disable channel when it is NA (data still displayed as long as one channel is active)
+        a = np.nan_to_num(a, nan=0)
+
+        # But show as bg_color where all channels are NA
+        a = np.where(all_channels_na, np.ones_like(a) * bg_color[:3], a)
+
+        # Convert to image
         img = Image.fromarray(np.uint8(a * 255))
+
+    # If array has a single channel - (depth, ping_time) shape - apply Matplotlib cmap
     elif (len(a.shape) == 2) and (echogram_cmap != "RGB"):
+        # Get cmap object
         cmap = plt.get_cmap(echogram_cmap)
-        img = Image.fromarray(np.uint8(cmap(a) * 255))
+
+        # Create mask for NaN values
+        nan_mask = np.isnan(a)
+
+        # Replace NaN with 0 for colormap conversion
+        a_filled = np.nan_to_num(a, nan=0)
+        rgb_array = np.uint8(cmap(a_filled) * 255)
+        bg_color_uint8 = np.uint8(bg_color * 255)
+
+        # Apply background color where NaN (expand mask to match RGBA channels)
+        rgb_array = np.where(nan_mask[..., np.newaxis], bg_color_uint8, rgb_array)
+        img = Image.fromarray(rgb_array)
+
     else:
         raise ValueError(f"sv_array is of shape {a.shape}, which doesn't match the cmap '{echogram_cmap}'.")
 
