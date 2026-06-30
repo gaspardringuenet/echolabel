@@ -22,8 +22,8 @@ dependencies = [
     "pandas>=2.3.3,<3",
 
     # images generation
-    "matplotlib>=3.10.8",
-    "Pillow>=12.0.0",
+    "matplotlib>=3.10.8,<4",
+    "Pillow>=12.0.0,<13",
 
     # gui
     "labelme==6.0.0", # pinned: any change in JSON files management would break echolabel
