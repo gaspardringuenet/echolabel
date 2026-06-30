@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["uv_build>=0.11.3,<0.12.0"]
+build-backend = "uv_build"
 
 [project]
 name = "echolabel"
@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Interactive echogram labelling tools"
 readme = "README.md"
 authors = [{name = "Gaspard Ringuenet", email = "gaspard.ringuenet@proton.me"}]
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
     # io
     "xarray>=2025.6.1,<2026",
@@ -16,28 +16,26 @@ dependencies = [
     "zarr>=2.18.7,<3",
     "dask>=2026.3.0,<2026.4.0",
     "echoregions>=0.2.3", # not pinned: compatibility with echoregions is a major objective
-
     # data wrangling
     "numpy>=1.26.4,<2",
     "pandas>=2.3.3,<3",
-
     # images generation
     "matplotlib>=3.10.8,<4",
     "Pillow>=12.0.0,<13",
-
     # gui
     "labelme==6.0.0", # pinned: any change in JSON files management would break echolabel
-
     # cli
     "click>=8.3.2,<9",
     "tqdm>=4.68.0,<5",
-
-    # other
-    "requests>=2.34.0,<3", # downloading demo dat  
-    "platformdirs>=4.9.4,<5", # cache management
+    # cache management
+    "platformdirs>=4.9.4,<5",
 ]
 
 [dependency-groups]
+# downloading data for demo mode
+demo = ["requests>=2.34.0,<3"]
+
+# developper mode
 dev = [
   {include-group = "lint"},
   {include-group = "test"}
@@ -49,22 +47,15 @@ test = [
     "pytest>=9.0.2",
     "pytest-cov>=7.1.0",
 ]
-
+# documentation building
 docs = [
     "furo>=2025.12.19",
     "myst-parser>=5.1.0",
     "sphinx>=9.0.4",
 ]
 
-
 [project.scripts]
 echolabel = "echolabel.cli:cli"
-
-[tool.setuptools.packages.find]
-where = ["src"]
-
-[tool.setuptools.package-data]
-echolabel = ["config/config.default.yaml"]
 
 [tool.ruff]
 line-length = 120
