@@ -4,39 +4,58 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "echolabel"
-version = "0.0.0"
+version = "0.1.0"
 description = "Interactive echogram labelling tools"
 readme = "README.md"
 authors = [{name = "Gaspard Ringuenet", email = "gaspard.ringuenet@proton.me"}]
 requires-python = ">=3.11"
 dependencies = [
+    # io
+    "xarray>=2025.6.1,<2026",
+    "netcdf4>=1.7.3,<2",
+    "zarr>=2.18.7,<3",
     "dask>=2026.3.0,<2026.4.0",
-    "labelme==6.0.0",
+    "echoregions>=0.2.3", # not pinned: compatibility with echoregions is a major objective
+
+    # data wrangling
+    "numpy>=1.26.4,<2",
+    "pandas>=2.3.3,<3",
+
+    # images generation
     "matplotlib>=3.10.8",
-    "numpy<=1.26.4",
-    "netcdf4>=1.7.3",
-    "pandas>=2.3.3",
     "Pillow>=12.0.0",
-    "requests>=2.34.0",
-    "scipy<1.15.2",
-    "tqdm>=4.68.0",
-    "xarray>=2025.6.1",
-    "platformdirs>=4.9.4",
-    "echoregions>=0.2.3",
-    "click>=8.3.2",
-    "zarr>=2.18.7",
+
+    # gui
+    "labelme==6.0.0", # pinned: any change in JSON files management would break echolabel
+
+    # cli
+    "click>=8.3.2,<9",
+    "tqdm>=4.68.0,<5",
+
+    # other
+    "requests>=2.34.0,<3", # downloading demo dat  
+    "platformdirs>=4.9.4,<5", # cache management
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
+  {include-group = "lint"},
+  {include-group = "test"}
+]
+lint = [
+  "ruff"
+]
+test = [
     "pytest>=9.0.2",
     "pytest-cov>=7.1.0",
 ]
+
 docs = [
     "furo>=2025.12.19",
     "myst-parser>=5.1.0",
     "sphinx>=9.0.4",
 ]
+
 
 [project.scripts]
 echolabel = "echolabel.cli:cli"
