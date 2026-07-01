@@ -126,4 +126,4 @@ def _parse_to_csv(cache_cfg: CachePathsConfig, manifest: ImagesDatasetManifest, 
         update_safe_name = outfile.stem + "_prev" + outfile.suffix
         os.rename(outfile, library_dir / update_safe_name)  # Safety guard: rename the existing file before overwriting
 
-    data.to_csv(outfile)
+    data.to_csv(outfile, index=False)
