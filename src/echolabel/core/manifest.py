@@ -47,20 +47,19 @@ class ImageMetadata:
 
         # Load real coordinates arrays
         ping_axis_values, range_axis_values = self.load_coordinates(output_dir)
+        imax_ping, imax_range = len(ping_axis_values) - 1, len(range_axis_values) - 1
 
         # Enforce numpy array type
         x_pixel = np.array(x_pixel)
         y_pixel = np.array(y_pixel)
 
         # Round to int & change dtype
-        x_pixel = np.rint(x_pixel).astype(np.uint32)
-        y_pixel = np.rint(y_pixel).astype(np.uint32)
+        x_pixel = np.floor(x_pixel).astype(np.uint32)
+        y_pixel = np.floor(y_pixel).astype(np.uint32)
 
-        # Validate pixel coordinates
-        if not np.all((0 <= x_pixel) & (x_pixel < len(ping_axis_values))):
-            raise ValueError(f"x_pixel {x_pixel} out of bounds [0, {len(ping_axis_values)}")
-        if not np.all((0 <= y_pixel) & (y_pixel < len(range_axis_values))):
-            raise ValueError(f"y_pixel {y_pixel} ouf of bounds [0, {len(range_axis_values)}")
+        # Enforce image boundaries (LabelMe sometimes allow x = img.shape[1] for instance)
+        x_pixel = np.clip(x_pixel, 0, imax_ping)
+        y_pixel = np.clip(y_pixel, 0, imax_range)
 
         return ping_axis_values[x_pixel], range_axis_values[y_pixel]
 
@@ -124,7 +123,9 @@ class ImagesDatasetManifest:
         """
         points = np.array(points)
 
-        return self.pixel_to_real_coords(cache_dir, filename, x_pixel=points[:, 0], y_pixel=points[:, 1])
+        return self.pixel_to_real_coords(
+            cache_dir, filename, x_pixel=points[:, 0], y_pixel=points[:, 1]
+        )
 
     def real_coords_to_labelme_polygon(
         self,

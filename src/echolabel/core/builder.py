@@ -6,47 +6,67 @@ import xarray as xr
 from tqdm import tqdm
 
 from ..utils.images import sv_array2image  # , sv_norm2image, normalize_sv_array,
-from .dataloader import open_dataset
+from .dataloader import open_dataset  # , open_mask
 from .manifest import ImageMetadata, ImagesDatasetManifest
 
 # ---- New function working with manifest
 
 
 def build_images_dataset(
-    source: str | Path | List[str | Path],
+    source: str | Path,
     output_dir: Path,
     freqs_hz: float | List[float] | None = None,
     frame_width: int = 1000,
     range_samples_slice: slice = slice(0, None),
+    bin_mask: str
+    | Path
+    | None = None,  # binary mask: overlay negative region with alpha to highlight positive
     **viz_params,
 ) -> ImagesDatasetManifest:
     """Builds an echogram images dataset with metadata"""
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    # Open source dataset
     source = Path(source)
-    ds_MVBS: xr.Dataset = open_dataset(source)  # Open source dataset
+    ds_MVBS: xr.Dataset = open_dataset(source)
+
+    # TODO Open binary mask dataset (if it exists)
+    # if bin_mask is not None:
+    #     da_mask: xr.Dataset = open_mask(bin_mask)
 
     images_metadata = []
     ping_axis_coord = ds_MVBS.ping_time.values
     range_axis_coord = ds_MVBS.depth.values
 
-    for i, ping_start in tqdm(enumerate(range(0, len(ping_axis_coord), frame_width)), desc="Building images"):
+    for i, ping_start in tqdm(
+        enumerate(range(0, len(ping_axis_coord), frame_width)), desc="Building images"
+    ):
         ping_end = min(ping_start + frame_width, len(ping_axis_coord))
 
         # Extract subset
         if freqs_hz is None:  # not provided: use the first channel
-            da_sub = ds_MVBS.isel(ping_time=slice(ping_start, ping_end), depth=range_samples_slice, channel=0).Sv
+            da_sub = ds_MVBS.isel(
+                ping_time=slice(ping_start, ping_end),
+                depth=range_samples_slice,
+                channel=0,
+            ).Sv
 
         else:
             if isinstance(freqs_hz, float):
                 freqs_hz = [freqs_hz]
             da_sub = (
-                ds_MVBS.isel(ping_time=slice(ping_start, ping_end), depth=range_samples_slice)
+                ds_MVBS.isel(
+                    ping_time=slice(ping_start, ping_end), depth=range_samples_slice
+                )
                 .sel(channel=ds_MVBS.frequency_nominal.isin(freqs_hz))
                 .squeeze()  # drop channel if single frequency was selected
                 .Sv
             )
+
+        # TODO Extract binary mask subset (if it exists)
+        # if bin_mask:
+        #     da_mask_sub = da_mask.isel(ping_time=slice(ping_start, ping_end), depth=range_samples_slice)
 
         # Save image
         filename = f"image_{i:04d}.png"
@@ -90,22 +110,24 @@ def build_images_dataset(
 
 
 def save_echogram_image(
-    sv_da: xr.DataArray,
+    da_Sv: xr.DataArray,
     outfile: Path,
     vmin: float,
     vmax: float,
     echogram_cmap: str,
     bg_color: str,
+    da_mask: xr.DataArray | None = None,
 ):
     """Computes an echogram image from acoustic data and saves it as png"""
 
     # Transpose and convert to np array
     try:
-        sv_array = sv_da.transpose("depth", "ping_time", "channel").values
+        sv_array = da_Sv.transpose("depth", "ping_time", "channel").values
     except ValueError:
-        sv_array = sv_da.transpose("depth", "ping_time").values
+        sv_array = da_Sv.transpose("depth", "ping_time").values
 
     # Convert array to PIL image by applying cmap and bg_color
+    # TODO overlay mask
     img = sv_array2image(sv_array, vmin, vmax, echogram_cmap, bg_color)
 
     # Save

@@ -1,5 +1,6 @@
 import glob
 import json
+import warnings
 from pathlib import Path
 from typing import Tuple
 
@@ -57,8 +58,10 @@ def parse_echolabel(
         data = pd.DataFrame(columns=CUSTOM_COLUMNS)
         return data
 
-    # Concatenate
-    data = pd.concat(data_list)
+    # Concatenate (silence FutureWarning)
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=FutureWarning)
+        data = pd.concat(data_list, ignore_index=True)
 
     # region_id must be unique (now it start with 1 for each json file): order by time of start and count
     data = data.sort_values(by="region_bbox_left")
@@ -100,7 +103,9 @@ def parse_labelme(
             continue
 
         # Convert to time x depth coordinates
-        time, depth = manifest.labelme_polygon_to_real_coords(Path(cache_dir), img_filename, shape["points"])
+        time, depth = manifest.labelme_polygon_to_real_coords(
+            Path(cache_dir), img_filename, shape["points"]
+        )
 
         # Calculate bounding box
         left = np.min(time)
@@ -126,7 +131,9 @@ def parse_labelme(
             # EVR compatibility
             "echoview_version": "13.0.378.44817",  # from EchoRegions' doc - https://echoregions.readthedocs.io/en/latest/Regions2D_functionality.html
             "region_structure_version": "13",
-            "region_creation_type": creation_types_conversion_dict.get(shape.get("shape_type"), "-1"),  # noqa "Polygon tool" (3 for rectangle)
+            "region_creation_type": creation_types_conversion_dict.get(
+                shape.get("shape_type"), "-1"
+            ),  # noqa "Polygon tool" (3 for rectangle)
             "region_type": "1",  # "analysis"
             "region_notes": [],
             # Additional attributes
