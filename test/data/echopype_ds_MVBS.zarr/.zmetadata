@@ -1,0 +1,225 @@
+{
+    "metadata": {
+        ".zattrs": {
+            "processing_function": "commongrid.compute_MVBS",
+            "processing_level": "Level 3A",
+            "processing_level_url": "https://echopype.readthedocs.io/en/stable/processing-levels.html",
+            "processing_software_name": "echopype",
+            "processing_software_version": "0.10.1",
+            "processing_time": "2026-07-27T16:30:56Z"
+        },
+        ".zgroup": {
+            "zarr_format": 2
+        },
+        "Sv/.zarray": {
+            "chunks": [
+                3,
+                8678,
+                152
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                3,
+                100,
+                152
+            ],
+            "zarr_format": 2
+        },
+        "Sv/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "channel",
+                "ping_time",
+                "depth"
+            ],
+            "binning_mode": "physical units",
+            "cell_methods": "ping_time: mean (interval: 20 second comment: ping_time is the interval start) depth: mean (interval: 5.0 meter comment: depth is the interval start)",
+            "long_name": "Mean volume backscattering strength (MVBS, mean Sv re 1 m-1)",
+            "ping_time_interval": "20s",
+            "range_meter_interval": "5.0m",
+            "units": "dB"
+        },
+        "channel/.zarray": {
+            "chunks": [
+                3
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<U37",
+            "fill_value": null,
+            "filters": null,
+            "order": "C",
+            "shape": [
+                3
+            ],
+            "zarr_format": 2
+        },
+        "channel/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "channel"
+            ],
+            "long_name": "Vendor channel ID"
+        },
+        "depth/.zarray": {
+            "chunks": [
+                152
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                152
+            ],
+            "zarr_format": 2
+        },
+        "depth/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "depth"
+            ],
+            "long_name": "Range distance",
+            "units": "m"
+        },
+        "frequency_nominal/.zarray": {
+            "chunks": [
+                3
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 3,
+                "cname": "zstd",
+                "id": "blosc",
+                "shuffle": 2
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                3
+            ],
+            "zarr_format": 2
+        },
+        "frequency_nominal/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "channel"
+            ],
+            "long_name": "Transducer frequency",
+            "standard_name": "sound_frequency",
+            "units": "Hz",
+            "valid_min": 0.0
+        },
+        "latitude/.zarray": {
+            "chunks": [
+                8678
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                100
+            ],
+            "zarr_format": 2
+        },
+        "latitude/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "ping_time"
+            ],
+            "history": "2026-07-27 16:30:36.343197 +00:00. Interpolated or propagated from Platform latitude/longitude.",
+            "long_name": "Platform latitude",
+            "standard_name": "latitude",
+            "units": "degrees_north",
+            "valid_range": "(-90.0, 90.0)"
+        },
+        "longitude/.zarray": {
+            "chunks": [
+                8678
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                100
+            ],
+            "zarr_format": 2
+        },
+        "longitude/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "ping_time"
+            ],
+            "history": "2026-07-27 16:30:36.343197 +00:00. Interpolated or propagated from Platform latitude/longitude.",
+            "long_name": "Platform longitude",
+            "standard_name": "longitude",
+            "units": "degrees_east",
+            "valid_range": "(-180.0, 180.0)"
+        },
+        "ping_time/.zarray": {
+            "chunks": [
+                8678
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<i8",
+            "fill_value": null,
+            "filters": null,
+            "order": "C",
+            "shape": [
+                100
+            ],
+            "zarr_format": 2
+        },
+        "ping_time/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "ping_time"
+            ],
+            "axis": "T",
+            "calendar": "proleptic_gregorian",
+            "long_name": "Ping time",
+            "standard_name": "time",
+            "units": "seconds since 2017-07-28T00:05:20"
+        }
+    },
+    "zarr_consolidated_format": 1
+}

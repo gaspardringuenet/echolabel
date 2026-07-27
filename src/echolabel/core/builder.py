@@ -5,11 +5,9 @@ from typing import List
 import xarray as xr
 from tqdm import tqdm
 
-from ..utils.images import sv_array2image  # , sv_norm2image, normalize_sv_array,
-from .dataloader import open_dataset  # , open_mask
+from ..utils.images import sv_array2image
+from .dataloader import open_dataset  # open_mask
 from .manifest import ImageMetadata, ImagesDatasetManifest
-
-# ---- New function working with manifest
 
 
 def build_images_dataset(
@@ -18,9 +16,7 @@ def build_images_dataset(
     freqs_hz: float | List[float] | None = None,
     frame_width: int = 1000,
     range_samples_slice: slice = slice(0, None),
-    bin_mask: str
-    | Path
-    | None = None,  # binary mask: overlay negative region with alpha to highlight positive
+    bin_mask: str | Path | None = None,  # binary mask: overlay negative region with alpha to highlight positive
     **viz_params,
 ) -> ImagesDatasetManifest:
     """Builds an echogram images dataset with metadata"""
@@ -39,14 +35,12 @@ def build_images_dataset(
     ping_axis_coord = ds_MVBS.ping_time.values
     range_axis_coord = ds_MVBS.depth.values
 
-    for i, ping_start in tqdm(
-        enumerate(range(0, len(ping_axis_coord), frame_width)), desc="Building images"
-    ):
+    for i, ping_start in tqdm(enumerate(range(0, len(ping_axis_coord), frame_width)), desc="Building images"):
         ping_end = min(ping_start + frame_width, len(ping_axis_coord))
 
         # Extract subset
         if freqs_hz is None:  # not provided: use the first channel
-            da_sub = ds_MVBS.isel(
+            da_sub: xr.DataArray = ds_MVBS.isel(
                 ping_time=slice(ping_start, ping_end),
                 depth=range_samples_slice,
                 channel=0,
@@ -55,10 +49,8 @@ def build_images_dataset(
         else:
             if isinstance(freqs_hz, float):
                 freqs_hz = [freqs_hz]
-            da_sub = (
-                ds_MVBS.isel(
-                    ping_time=slice(ping_start, ping_end), depth=range_samples_slice
-                )
+            da_sub: xr.DataArray = (
+                ds_MVBS.isel(ping_time=slice(ping_start, ping_end), depth=range_samples_slice)
                 .sel(channel=ds_MVBS.frequency_nominal.isin(freqs_hz))
                 .squeeze()  # drop channel if single frequency was selected
                 .Sv
@@ -91,16 +83,11 @@ def build_images_dataset(
         images_metadata.append(img_meta)
 
     # Save manifest file
-    if isinstance(source, list):
-        source = list(map(str, source))
-    else:
-        source = str(source)
-
     manifest = ImagesDatasetManifest(
-        source=source,
+        source=str(source),
         created_at=datetime.now().isoformat(),
-        sv_shape=dict(zip(da_sub.dims, da_sub.shape)),
-        channels=list(da_sub.channel.values) if "channel" in da_sub.dims else "first",
+        sv_shape=dict(zip(da_sub.dims, da_sub.shape)),  # type: ignore
+        channels=list(da_sub.channel.values) if "channel" in da_sub.dims else "first",  # type: ignore
         viz_params=viz_params,
         images=images_metadata,
     )

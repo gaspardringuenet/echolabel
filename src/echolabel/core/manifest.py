@@ -1,10 +1,10 @@
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Literal, Tuple
 
 import numpy as np
-import xarray as xr
+import numpy.typing as npt
 
 
 @dataclass
@@ -31,7 +31,7 @@ class ImageMetadata:
             range_axis=range_axis_values,
         )
 
-    def load_coordinates(self, output_dir: Path):
+    def load_coordinates(self, output_dir: Path) -> Tuple[npt.NDArray, npt.NDArray]:
         """Load coordinate arrays"""
         stem = Path(self.filename).stem
         data = np.load(output_dir / f"{stem}_coords.npz")
@@ -40,9 +40,9 @@ class ImageMetadata:
     def pixel_to_real_coords(
         self,
         output_dir: Path,
-        x_pixel: int | List[int] | np.ndarray[int],
-        y_pixel: int | List[int] | np.ndarray[int],
-    ) -> Tuple[np.ndarray, np.ndarray]:
+        x_pixel: int | List[int] | npt.NDArray[np.integer],
+        y_pixel: int | List[int] | npt.NDArray[np.integer],
+    ) -> Tuple[npt.NDArray, npt.NDArray]:
         """Convert pixel coordinates to real-world (ping_axis, range_axis) coordinates"""
 
         # Load real coordinates arrays
@@ -70,8 +70,8 @@ class ImagesDatasetManifest:
 
     source: str | List[str]
     created_at: str
-    sv_shape: List[int]
-    channels: float | List[float]
+    sv_shape: dict[str, int]
+    channels: List[float] | Literal["first"]
     viz_params: dict
     images: List[ImageMetadata]
 
@@ -91,21 +91,23 @@ class ImagesDatasetManifest:
         data["images"] = [ImageMetadata(**img) for img in data["images"]]
         return cls(**data)
 
-    def get_image_metadata(self, filename: str) -> Optional[ImageMetadata]:
+    def get_image_metadata(self, filename: str) -> ImageMetadata:
         """Get metadata for a specific image by filename"""
         for img_meta in self.images:
             if img_meta.filename == filename:
                 return img_meta
-        return None
+        raise FileNotFoundError(f"No image metada corresponds to filename: {filename}")
 
     def pixel_to_real_coords(
         self,
         cache_dir: Path,
         filename: str,
-        x_pixel: int | List[int] | np.ndarray[int],
-        y_pixel: int | List[int] | np.ndarray[int],
-    ) -> Tuple[np.ndarray, np.ndarray]:
-        """Convert pixel coordinates to real-worlds coordinates for a given image"""
+        x_pixel: int | List[int] | npt.NDArray[np.integer],
+        y_pixel: int | List[int] | npt.NDArray[np.integer],
+    ) -> Tuple[npt.NDArray, npt.NDArray]:
+        """
+        Convert pixel coordinates to real-worlds coordinates for a given image
+        """
         img_meta = self.get_image_metadata(filename)
         if img_meta is None:
             raise ValueError(f"Image {filename} not found in manifest")
@@ -117,14 +119,17 @@ class ImagesDatasetManifest:
         cache_dir: Path,
         filename: str,
         points: List[int],
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    ) -> Tuple[npt.NDArray, npt.NDArray]:
         """
-        Convert a Labelme polygon annotation to rCeal-world coordinates
+        Convert a Labelme polygon annotation to real-world coordinates
         """
-        points = np.array(points)
+        points_array: npt.NDArray[np.integer] = np.array(points)
 
         return self.pixel_to_real_coords(
-            cache_dir, filename, x_pixel=points[:, 0], y_pixel=points[:, 1]
+            cache_dir,
+            filename,
+            x_pixel=points_array[:, 0],
+            y_pixel=points_array[:, 1],
         )
 
     def real_coords_to_labelme_polygon(
@@ -133,7 +138,7 @@ class ImagesDatasetManifest:
         filename: str,
         points_ping_axis_values: List[float | np.datetime64],
         points_range_axis_values: List[float],
-    ) -> List[Tuple[int, int]]:
+    ) -> List[List[int]]:
         """
         Convert real-world coordinates to a Labelme polygon
         """
@@ -144,6 +149,6 @@ class ImagesDatasetManifest:
         xs = np.where(points_ping_axis_values == ping_axis_values)
         ys = np.where(points_range_axis_values == range_axis_values)
 
-        points = [[x, y] for (x, y) in zip(xs, ys)]
+        points = [[int(x), int(y)] for (x, y) in zip(xs, ys)]
 
         return points

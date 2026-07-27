@@ -30,7 +30,7 @@ def regions2d_to_labelme(
     parsed_ids = []
     failed_ids = []
 
-    df = regions.data.copy()
+    df: pd.DataFrame = pd.DataFrame(regions.data.copy())
 
     # Convert bbox time columns from string to datetime64 (should be done by Echoregions ideally)
     for bbox_col in ["region_bbox_left", "region_bbox_right"]:
@@ -41,13 +41,13 @@ def regions2d_to_labelme(
         time_coord, depth_coord = img_meta.load_coordinates(img_dataset_dir)
 
         # Grab all regions contained within the image's bbox
-        contained_mask = (
+        contained_mask: pd.Series = (
             (time_coord[0] <= df["region_bbox_left"])
             & (df["region_bbox_right"] <= time_coord[-1])
             & (depth_coord[0] <= df["region_bbox_top"])
             & (df["region_bbox_bottom"] <= depth_coord[-1])
         )
-        contained = df[contained_mask]
+        contained = df.loc[contained_mask]
 
         # Continue if no regions is contained in image
         if len(contained) == 0:
@@ -86,14 +86,14 @@ def regions2d_to_labelme(
                 # Shape type
                 region_creation_type = row.get("region_creation_type", None)
 
-                if int(region_creation_type) == 3:  # rectangle
+                if region_creation_type is not None and int(region_creation_type) == 3:  # rectangle
                     shape_type = "rectangle"
                     points = [
                         [float(np.min(x_pixels)), float(np.min(y_pixels))],
                         [float(np.max(x_pixels)), float(np.max(y_pixels))],
                     ]
                 else:
-                    shape_type = "polygon"
+                    shape_type = "polygon"  # any type that is not rectangle is writen as a polygon
                     points = [[float(x), float(y)] for x, y in zip(x_pixels, y_pixels)]
 
                 # Build shape metadata

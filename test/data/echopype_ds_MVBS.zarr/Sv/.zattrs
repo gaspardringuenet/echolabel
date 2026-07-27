@@ -1,0 +1,13 @@
+{
+    "_ARRAY_DIMENSIONS": [
+        "channel",
+        "ping_time",
+        "depth"
+    ],
+    "binning_mode": "physical units",
+    "cell_methods": "ping_time: mean (interval: 20 second comment: ping_time is the interval start) depth: mean (interval: 5.0 meter comment: depth is the interval start)",
+    "long_name": "Mean volume backscattering strength (MVBS, mean Sv re 1 m-1)",
+    "ping_time_interval": "20s",
+    "range_meter_interval": "5.0m",
+    "units": "dB"
+}

@@ -1,0 +1,10 @@
+{
+    "_ARRAY_DIMENSIONS": [
+        "ping_time"
+    ],
+    "history": "2026-07-27 16:30:36.343197 +00:00. Interpolated or propagated from Platform latitude/longitude.",
+    "long_name": "Platform longitude",
+    "standard_name": "longitude",
+    "units": "degrees_east",
+    "valid_range": "(-180.0, 180.0)"
+}

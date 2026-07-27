@@ -12,12 +12,12 @@ requires-python = ">=3.12"
 dependencies = [
     # io
     "xarray>=2025.6.1,<2026",
-    "netcdf4>=1.7.3,<2",
+    "netcdf4>=1.7.4,<2",
     "zarr>=2.18.7,<3",
     "dask>=2026.3.0,<2026.4.0",
     "echoregions>=0.2.3", # not pinned: compatibility with echoregions is a major objective
     # data wrangling
-    "numpy>=1.26.4,<2",
+    "numpy>=2,<3",
     "pandas>=2.3.3,<3",
     # images generation
     "matplotlib>=3.10.8,<4",
@@ -59,3 +59,9 @@ echolabel = "echolabel.cli:cli"
 
 [tool.ruff]
 line-length = 120
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore:numpy.ndarray size changed, may indicate binary incompatibility:RuntimeWarning",
+]
+

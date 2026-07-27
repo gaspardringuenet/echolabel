@@ -1,17 +1,15 @@
-from typing import Literal, Sequence
-
 import matplotlib.pyplot as plt
 import numpy as np
-import xarray
+import numpy.typing as npt
 from matplotlib import colors
 from matplotlib.typing import ColorType
 from PIL import Image
 
 
 def sv_array2image(
-    a: np.ndarray,
-    vmin: float = None,
-    vmax: float = None,
+    a: npt.NDArray[np.float32],
+    vmin: float | None = None,
+    vmax: float | None = None,
     echogram_cmap: str = "RGB",
     bg_color: ColorType = "grey",
 ) -> Image.Image:
@@ -37,7 +35,6 @@ def sv_array2image(
     Image.Image
         Echogram image
 
-
     Raises
     ------
     ValueError
@@ -46,17 +43,15 @@ def sv_array2image(
     """
 
     # Handle missing vmin, vmax params
-    if not vmin:
-        vmin = a.min()
-    if not vmax:
-        vmax = a.max()
+    min_value: float = vmin or a.min()
+    max_value: float = vmax or a.min()
 
     # Convert array values to (0, 1) range (use vmin, vmax and clip)
-    a = (a - vmin) / (vmax - vmin)
+    a = (a - min_value) / (max_value - min_value)
     a = np.clip(a, 0, 1)
 
     # Get rgba vector for background color
-    bg_color = colors.to_rgba_array(bg_color)[0]
+    bg_rgb: npt.NDArray = colors.to_rgba_array(bg_color)[0]
 
     # If array as 3 channels, convert to RGB echogram image
     if (len(a.shape) == 3) and (a.shape[2] == 3) and (echogram_cmap == "RGB"):
@@ -67,7 +62,7 @@ def sv_array2image(
         a = np.nan_to_num(a, nan=0)
 
         # But show as bg_color where all channels are NA
-        a = np.where(all_channels_na, np.ones_like(a) * bg_color[:3], a)
+        a = np.where(all_channels_na, np.ones_like(a) * bg_rgb[:3], a)
 
         # Convert to image
         img = Image.fromarray(np.uint8(a * 255))
@@ -83,7 +78,7 @@ def sv_array2image(
         # Replace NaN with 0 for colormap conversion
         a_filled = np.nan_to_num(a, nan=0)
         rgb_array = np.uint8(cmap(a_filled) * 255)
-        bg_color_uint8 = np.uint8(bg_color * 255)
+        bg_color_uint8 = np.uint8(bg_rgb * 255)
 
         # Apply background color where NaN (expand mask to match RGBA channels)
         rgb_array = np.where(nan_mask[..., np.newaxis], bg_color_uint8, rgb_array)

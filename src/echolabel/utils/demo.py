@@ -14,7 +14,7 @@ URL = "https://github.com/gaspardringuenet/echolabel/releases/download/demo-data
 logger = logging.getLogger(__name__)
 
 
-def download_file(url: str, output_dir: Path) -> str:
+def download_file(url: str, output_dir: Path) -> Path:
     """Download a file from a url using requests"""
 
     local_filename = url.split("/")[-1]

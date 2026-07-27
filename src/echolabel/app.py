@@ -13,7 +13,7 @@ from echolabel.config.cache import CachePathsConfig
 from echolabel.config.config import Config
 from echolabel.core.builder import build_images_dataset
 from echolabel.core.manifest import ImagesDatasetManifest
-from echolabel.echoregions_extension import echolabel_writer, regions2d_parser
+from echolabel.echoregions_extension import labelme_reader, labelme_writer
 
 
 class EcholabelApp:
@@ -49,9 +49,7 @@ class EcholabelApp:
             bg_color=self.cfg.bg_color,
         )
         output = Path(output)
-        manifest = _prepare_labelme_dataset(
-            self.cache, self.cfg.reuse_images, **builder_params
-        )
+        manifest = _prepare_labelme_dataset(self.cache, self.cfg.reuse_images, **builder_params)
         _load_annotations(output, self.cache, manifest)
         _run_labelme(self.cache)
         _parse_to_csv(self.cache, manifest, output)
@@ -88,28 +86,24 @@ def _load_annotations(
     cache_cfg: CachePathsConfig,
     manifest: ImagesDatasetManifest,
 ):
-    # If the library already contains annotation: write to Labelme format
+    """If the library already contains annotation: write to Labelme format"""
     if file.is_file():
         if file.suffix == ".evr":
             regions: Regions2D = er.read_evr(file)
         elif file.suffix == ".csv":
             regions: Regions2D = er.read_regions_csv(file)
         else:
-            raise ValueError(
-                f"Invalid file format for library. Expected one of ['.evr', '.csv'], got '{file.suffix}'"
-            )
+            raise ValueError(f"Invalid file format for library. Expected one of ['.evr', '.csv'], got '{file.suffix}'")
 
-        labelme_data = echolabel_writer.regions2d_to_labelme(
-            regions, manifest, cache_cfg.img_dataset
-        )
+        labelme_data = labelme_writer.regions2d_to_labelme(regions, manifest, cache_cfg.img_dataset)
 
         for filename, data in labelme_data.items():
             with open(cache_cfg.labelme / filename, "w") as f:
                 json.dump(data, f, indent=4)
 
 
-def _run_labelme(cache_cfg: CachePathsConfig):
-    # Run Labelme as subprocess
+def _run_labelme(cache_cfg: CachePathsConfig) -> None:
+    """Run Labelme as subprocess"""
     with open(cache_cfg.labelme_logs, "w") as log:
         subprocess.run(
             [
@@ -127,19 +121,18 @@ def _parse_to_csv(
     cache_cfg: CachePathsConfig,
     manifest: ImagesDatasetManifest,
     outfile: Path,
-):
+) -> None:
+    """Convert LabelMe files to Regions2D compatible DataFrame and save CSV"""
 
     # Parse output to Dataframe
-    data = regions2d_parser.parse_echolabel(cache_cfg, manifest)
+    data = labelme_reader.parse_echolabel(cache_cfg, manifest)
 
     # Save to library file
     library_dir = outfile.parent
     library_dir.mkdir(parents=True, exist_ok=True)
 
     if outfile.is_file():
-        update_safe_name = outfile.stem + "_prev" + outfile.suffix
-        os.rename(
-            outfile, library_dir / update_safe_name
-        )  # Safety guard: rename the existing file before overwriting
+        update_safe_name = outfile.stem + "_backup" + outfile.suffix
+        os.rename(outfile, library_dir / update_safe_name)  # Safety guard: rename the existing file before overwriting
 
     data.to_csv(outfile, index=False)

@@ -15,10 +15,10 @@ def cli():
 
 
 @cli.command()
-def init():
+def config():
     """Initialize user configuration file"""
     config_path = init_user_config()
-    click.echo(f"Configuration initialized at: {config_path}")
+    click.echo(f"User configuration initialized at: {config_path}")
     click.echo("Edit this file to customize your defaults")
 
 

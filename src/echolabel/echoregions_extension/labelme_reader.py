@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Tuple
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 from echoregions.utils.io import check_file
 
@@ -55,7 +56,7 @@ def parse_echolabel(
 
     # Return default if empty
     if len(data_list) == 0:
-        data = pd.DataFrame(columns=CUSTOM_COLUMNS)
+        data = pd.DataFrame(columns=CUSTOM_COLUMNS)  # type: ignore
         return data
 
     # Concatenate (silence FutureWarning)
@@ -75,7 +76,7 @@ def parse_echolabel(
 
 def parse_labelme(
     input_file: str,
-    cache_dir: str,
+    cache_dir: str | Path,
     manifest: ImagesDatasetManifest,
 ) -> pd.DataFrame:
     """Parse a Labelme JSON file. Points are related to a
@@ -103,9 +104,7 @@ def parse_labelme(
             continue
 
         # Convert to time x depth coordinates
-        time, depth = manifest.labelme_polygon_to_real_coords(
-            Path(cache_dir), img_filename, shape["points"]
-        )
+        time, depth = manifest.labelme_polygon_to_real_coords(Path(cache_dir), img_filename, shape["points"])
 
         # Calculate bounding box
         left = np.min(time)
@@ -131,9 +130,7 @@ def parse_labelme(
             # EVR compatibility
             "echoview_version": "13.0.378.44817",  # from EchoRegions' doc - https://echoregions.readthedocs.io/en/latest/Regions2D_functionality.html
             "region_structure_version": "13",
-            "region_creation_type": creation_types_conversion_dict.get(
-                shape.get("shape_type"), "-1"
-            ),  # noqa "Polygon tool" (3 for rectangle)
+            "region_creation_type": creation_types_conversion_dict.get(shape.get("shape_type"), "-1"),  # noqa "Polygon tool" (3 for rectangle)
             "region_type": "1",  # "analysis"
             "region_notes": [],
             # Additional attributes
@@ -150,14 +147,18 @@ def parse_labelme(
 
 
 def _format_rectangle(
-    left: np.datetime64, right: np.datetime64, top: float, bottom: float
-) -> Tuple[np.ndarray[np.datetime64], np.ndarray[float]]:
+    left: np.datetime64,
+    right: np.datetime64,
+    top: float,
+    bottom: float,
+) -> Tuple[npt.NDArray[np.datetime64], npt.NDArray[np.float32]]:
     """
     Format rectangle to be EVR compatible: a list of points in order:
         1    4
-        2 -> 3
+        |    |
+        2 -- 3
     """
-    time = np.array([left, left, right, right])
-    depth = np.array([top, bottom, bottom, top])
+    time = np.array([left, left, right, right], dtype=np.datetime64)
+    depth = np.array([top, bottom, bottom, top], dtype=np.float32)
 
     return time, depth

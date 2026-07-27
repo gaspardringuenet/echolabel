@@ -1,0 +1,8 @@
+{
+    "processing_function": "commongrid.compute_MVBS",
+    "processing_level": "Level 3A",
+    "processing_level_url": "https://echopype.readthedocs.io/en/stable/processing-levels.html",
+    "processing_software_name": "echopype",
+    "processing_software_version": "0.10.1",
+    "processing_time": "2026-07-27T16:30:56Z"
+}

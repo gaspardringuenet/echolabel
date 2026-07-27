@@ -1,0 +1,10 @@
+{
+    "_ARRAY_DIMENSIONS": [
+        "ping_time"
+    ],
+    "axis": "T",
+    "calendar": "proleptic_gregorian",
+    "long_name": "Ping time",
+    "standard_name": "time",
+    "units": "seconds since 2017-07-28T00:05:20"
+}

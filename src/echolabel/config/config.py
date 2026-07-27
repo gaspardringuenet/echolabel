@@ -1,10 +1,9 @@
 """Configuration management for Echolabel"""
 
-import json
 import os
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import List, Optional
+from typing import List
 
 import yaml
 
@@ -12,7 +11,7 @@ import yaml
 try:
     from importlib.resources import files
 except ImportError:
-    from importlib_resources import files
+    from importlib_resources import files  # type: ignore
 
 
 def get_config_dir() -> Path:
@@ -32,7 +31,7 @@ def get_user_config_path() -> Path:
 
 
 def init_user_config() -> Path:
-    """Initialize user config directory ad copy default config if needed"""
+    """Initialize user config directory and copy default config if needed"""
     config_dir = get_config_dir()
     config_dir.mkdir(parents=True, exist_ok=True)
 
@@ -68,7 +67,7 @@ class Config:
                 setattr(self, key, value)
 
     @classmethod
-    def load(cls, config_path: Optional[Path] = None) -> "Config":
+    def load(cls, config_path: Path | None = None) -> "Config":
         """
         Load configuration with fallback chain:
         1. Specified config file
