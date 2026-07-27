@@ -6,7 +6,7 @@ from matplotlib.typing import ColorType
 from PIL import Image
 
 
-def sv_array2image(
+def array2image(
     a: npt.NDArray[np.float32],
     vmin: float | None = None,
     vmax: float | None = None,
@@ -85,6 +85,6 @@ def sv_array2image(
         img = Image.fromarray(rgb_array)
 
     else:
-        raise ValueError(f"sv_array is of shape {a.shape}, which doesn't match the cmap '{echogram_cmap}'.")
+        raise ValueError(f"Array is of shape {a.shape}, which doesn't match the cmap '{echogram_cmap}'.")
 
     return img

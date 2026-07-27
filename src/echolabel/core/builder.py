@@ -1,3 +1,12 @@
+"""
+Build an image dataset from an acoustic dataset and save metadata using ImagesDatasetManifest.
+
+Note: currently some confusion between naming conventions:
+
+* Normalized dataset variables: 'tvar', 'zvar', 'cvar', 'fvar', 'acouvar' (time, depth, channel, frequency, acoustic variable)
+* Real-world naming : 'ping_time_*', 'range_*'
+"""
+
 from datetime import datetime
 from pathlib import Path
 from typing import List
@@ -5,7 +14,7 @@ from typing import List
 import xarray as xr
 from tqdm import tqdm
 
-from ..utils.images import sv_array2image
+from ..utils.images import array2image
 from .dataloader import open_dataset  # open_mask
 from .manifest import ImageMetadata, ImagesDatasetManifest
 
@@ -25,35 +34,35 @@ def build_images_dataset(
 
     # Open source dataset
     source = Path(source)
-    ds_MVBS: xr.Dataset = open_dataset(source)
+    ds_acou: xr.Dataset = open_dataset(source)
 
     # TODO Open binary mask dataset (if it exists)
     # if bin_mask is not None:
     #     da_mask: xr.Dataset = open_mask(bin_mask)
 
     images_metadata = []
-    ping_axis_coord = ds_MVBS.ping_time.values
-    range_axis_coord = ds_MVBS.depth.values
+    t_axis_coord = ds_acou.tvar.values
+    z_axis_coord = ds_acou.zvar.values
 
-    for i, ping_start in tqdm(enumerate(range(0, len(ping_axis_coord), frame_width)), desc="Building images"):
-        ping_end = min(ping_start + frame_width, len(ping_axis_coord))
+    for i, t_start in tqdm(enumerate(range(0, len(t_axis_coord), frame_width)), desc="Building images"):
+        t_end = min(t_start + frame_width, len(t_axis_coord))
 
         # Extract subset
         if freqs_hz is None:  # not provided: use the first channel
-            da_sub: xr.DataArray = ds_MVBS.isel(
-                ping_time=slice(ping_start, ping_end),
-                depth=range_samples_slice,
-                channel=0,
-            ).Sv
+            da_sub: xr.DataArray = ds_acou.isel(
+                tvar=slice(t_start, t_end),
+                zvar=range_samples_slice,
+                cvar=0,
+            ).acouvar
 
         else:
             if isinstance(freqs_hz, float):
                 freqs_hz = [freqs_hz]
             da_sub: xr.DataArray = (
-                ds_MVBS.isel(ping_time=slice(ping_start, ping_end), depth=range_samples_slice)
-                .sel(channel=ds_MVBS.frequency_nominal.isin(freqs_hz))
+                ds_acou.isel(tvar=slice(t_start, t_end), zvar=range_samples_slice)
+                .sel(fvar=freqs_hz)
                 .squeeze()  # drop channel if single frequency was selected
-                .Sv
+                .acouvar
             )
 
         # TODO Extract binary mask subset (if it exists)
@@ -67,17 +76,17 @@ def build_images_dataset(
         # Create metadata
         img_meta = ImageMetadata(
             filename=filename,
-            ping_sample_start=ping_start,
-            ping_sample_end=ping_end,
+            ping_sample_start=t_start,
+            ping_sample_end=t_end,
             range_sample_start=range_samples_slice.start or 0,
-            range_sample_end=range_samples_slice.stop or da_sub.sizes["depth"] - 1,
+            range_sample_end=range_samples_slice.stop or da_sub.sizes["zvar"] - 1,
         )
 
         # Save coordinates
         img_meta.save_coordinates(
             output_dir,
-            ping_axis_values=ping_axis_coord[ping_start:ping_end],
-            range_axis_values=range_axis_coord[range_samples_slice],
+            ping_axis_values=t_axis_coord[t_start:t_end],
+            range_axis_values=z_axis_coord[range_samples_slice],
         )
 
         images_metadata.append(img_meta)
@@ -86,7 +95,7 @@ def build_images_dataset(
     manifest = ImagesDatasetManifest(
         source=str(source),
         created_at=datetime.now().isoformat(),
-        sv_shape=dict(zip(da_sub.dims, da_sub.shape)),  # type: ignore
+        shape=dict(zip(da_sub.dims, da_sub.shape)),  # type: ignore
         channels=list(da_sub.channel.values) if "channel" in da_sub.dims else "first",  # type: ignore
         viz_params=viz_params,
         images=images_metadata,
@@ -97,7 +106,7 @@ def build_images_dataset(
 
 
 def save_echogram_image(
-    da_Sv: xr.DataArray,
+    da: xr.DataArray,
     outfile: Path,
     vmin: float,
     vmax: float,
@@ -109,13 +118,13 @@ def save_echogram_image(
 
     # Transpose and convert to np array
     try:
-        sv_array = da_Sv.transpose("depth", "ping_time", "channel").values
+        array = da.transpose("zvar", "tvar", "fvar").values
     except ValueError:
-        sv_array = da_Sv.transpose("depth", "ping_time").values
+        array = da.transpose("zvar", "tvar").values
 
     # Convert array to PIL image by applying cmap and bg_color
     # TODO overlay mask
-    img = sv_array2image(sv_array, vmin, vmax, echogram_cmap, bg_color)
+    img = array2image(array, vmin, vmax, echogram_cmap, bg_color)
 
     # Save
     img.save(outfile)

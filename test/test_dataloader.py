@@ -26,16 +26,16 @@ def test_open_dataset(format: str, convention: str, file: Path):
 
     required_coords = {"fvar", "cvar", "tvar", "zvar"}
     required_vars = required_coords | {"acouvar"}
-    valid_dims = {"cvar", "tvar", "zvar"}
+    valid_dims = {"fvar", "tvar", "zvar"}
 
     # Check dimensions are correct
     assert set(ds_Sv.dims) == valid_dims, (
-        f"Normalized dataset should have exactly the required dimensions: {valid_dims}."
+        f"Normalized dataset should have exactly the required dimensions: {valid_dims}. Got {set(ds_Sv.dims)}."
     )
 
     # Check coords normalization
     assert required_coords <= set(ds_Sv.coords), (
-        f"Normalized dataset does not contain required coords: {required_coords}."
+        f"Normalized dataset does not contain required coords: {required_coords}. Coords: {set(ds_Sv.coords)}."
     )
 
     # Check vars normalization

@@ -70,7 +70,7 @@ class ImagesDatasetManifest:
 
     source: str | List[str]
     created_at: str
-    sv_shape: dict[str, int]
+    shape: dict[str, int]
     channels: List[float] | Literal["first"]
     viz_params: dict
     images: List[ImageMetadata]

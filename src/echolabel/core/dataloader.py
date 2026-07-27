@@ -8,69 +8,6 @@ import xarray as xr
 
 logger = logging.getLogger(__name__)
 
-REQUIRED_VARS = {"acoustic": "Sv", "channel": "frequency_nominal"}
-REQUIRED_DIMS = {"time": "ping_time", "depth": "depth", "channel": "channel"}
-
-
-def _validate_vars(ds: xr.Dataset) -> xr.Dataset:
-    """Will be replaced by _normalize_vars"""
-
-    for type, name in REQUIRED_VARS.items():
-        if name not in ds.variables:
-            raise ValueError(f"Acoustic dataset must contain a {type} variable with name '{name}'.")
-    for type, name in REQUIRED_DIMS.items():
-        if name not in ds.dims:
-            raise ValueError(f"Acoustic dataset must contain a {type} dimension with name '{name}'.")
-    return ds
-
-
-def open_dataset(path: Path, preprocess_fn: Callable[[xr.Dataset], xr.Dataset] = _validate_vars) -> xr.Dataset:
-    """
-    Lazy-load an acoustic dataset.
-
-    Support formats:
-    - Single .zarr directory
-    - Single .nc file
-    - Directory containing multiple .nc files (concatenated along ping_time)
-    """
-
-    if path.is_dir():
-        # Check if it's a .zarr directory
-        if path.suffix == ".zarr":
-            ds_MVBS = xr.open_dataset(path, engine="zarr", chunks=None)
-            ds_MVBS = preprocess_fn(ds_MVBS)
-            return ds_MVBS
-
-        # Otherwise, assume directory of .nc files
-        nc_files = sorted([str(path / f) for f in os.listdir(str(path)) if f.endswith(".nc") and not f.startswith(".")])
-
-        if not nc_files:
-            raise ValueError(f"No .nc files found in directory: {path}")
-
-        return xr.open_mfdataset(
-            nc_files,
-            engine="netcdf4",
-            combine="nested",
-            concat_dim="tvar",
-            data_vars="minimal",
-            chunks="auto",
-            preprocess=preprocess_fn,
-            compat="no_conflicts",
-            join="outer",
-        )
-
-    # Single file
-    if path.suffix == ".nc":
-        ds_MVBS = xr.open_dataset(path, engine="netcdf4", chunks="auto")
-    else:
-        raise ValueError(
-            f"Invalid file format: '{path.suffix}'. Expected .nc, .zarr, or directory containing .nc files"
-        )
-
-    ds_MVBS = preprocess_fn(ds_MVBS)
-    return ds_MVBS
-
-
 CONFIG_EP: dict[str, str | None] = {
     "acouvar": "Sv",
     "cvar": "channel",
@@ -99,6 +36,8 @@ def _normalize_vars_from_config(
     config: dict,
 ) -> xr.Dataset:
 
+    config = config.copy()
+
     # Fetch unit scale if it exists (if not assume 1)
     try:
         fvar_unit_scale = config.pop("fvar_unit_scale")
@@ -108,23 +47,29 @@ def _normalize_vars_from_config(
     # Check that all provided var names exist in dataset
     non_none_values = {v for v in config.values() if v is not None}
     if not (non_none_values <= set(ds.variables)):
-        raise ValueError("Variables config does not match actual variable names.")
+        raise ValueError(
+            "Variables config does not match actual variable names."
+            f"\n* Config variable names not in Dataset: {non_none_values - set(ds.variables)}"
+        )
 
     # Check for "fvar" config: if none, use "cvar" (must be numerical)
     fvar = config.get("fvar")
     if fvar is None:
+        # Rename to avoid using None as var name
+        fvar = "fvar"
+        config["fvar"] = "fvar"
+
+        # Assign cvar to fvar after checks
         cvar = config.get("cvar")
         if cvar is None:
             raise ValueError("Channel variable name is None is config.")
         if not np.issubdtype(ds[cvar].dtype, np.number):
             raise ValueError("In the absence of fvar, channel variable should have a numeric dtype.")
-        ds[fvar] = ds[cvar].astype(np.float64)
+        ds["fvar"] = ds[cvar].astype(np.float64)
 
-    # Make fvar a coord
-    ds = ds.set_coords(fvar)
-
-    # Scale fvar to Hz
-    ds[fvar] = fvar_unit_scale * ds[fvar]
+    # fvar engineering
+    ds = ds.set_coords(fvar)  # Make a coord
+    ds[fvar] = fvar_unit_scale * ds[fvar]  # Scale to Hz
 
     # Normalize variable names
     # Create renaming dictionaries
@@ -137,6 +82,9 @@ def _normalize_vars_from_config(
 
     # Drop dimensions other than normalized
     ds = ds.drop_dims(set(ds.dims) - set(["cvar", "tvar", "zvar"]))
+
+    # Swap cvar dim for fvar, enabling sel(fvar=...) and isel(fvar=...)
+    ds = ds.swap_dims({"cvar": "fvar"})
 
     return ds
 
@@ -159,3 +107,57 @@ def _normalize_vars(
             print(f"Normalized dataset using {convention_name} convention.")
             return ds
     raise ValueError(f"Acoustic dataset could not be normalized. Per-convention errors:\n{errors}")
+
+
+def open_dataset(path: Path, preprocess_fn: Callable[[xr.Dataset], xr.Dataset] = _normalize_vars) -> xr.Dataset:
+    """
+    Lazy-load an acoustic dataset.
+
+    Support formats:
+    - Single .zarr directory
+    - Single .nc file
+    - Directory containing multiple .nc files (concatenated along ping_time)
+
+    Supports acoustic data conventions:
+    - IMOS SOOP-BA ('time', 'depth', 'channel' - containing freq in kHz, 'Sv')
+    - Echopype ('ping_time', 'depth', 'channel' - str, 'frequency_nominal' - in Hz, 'Sv')
+    - Custom (TODO)
+    """
+
+    if path.is_dir():
+        # Check if it's a .zarr directory
+        if path.suffix == ".zarr":
+            ds = xr.open_dataset(path, engine="zarr", chunks=None)
+            ds = preprocess_fn(ds)
+            return ds
+
+        # Otherwise, assume directory of .nc files
+        nc_files = sorted([str(path / f) for f in os.listdir(str(path)) if f.endswith(".nc") and not f.startswith(".")])
+
+        if not nc_files:
+            raise ValueError(f"No .nc files found in directory: {path}")
+
+        return xr.open_mfdataset(
+            nc_files,
+            engine="netcdf4",
+            combine="nested",
+            concat_dim="tvar",
+            data_vars="minimal",
+            chunks="auto",
+            preprocess=preprocess_fn,
+            compat="no_conflicts",
+            join="outer",
+        )
+
+    # Single file
+    if path.suffix == ".nc":
+        ds = xr.open_dataset(path, engine="netcdf4", chunks="auto")
+    else:
+        raise ValueError(
+            f"Invalid file format: '{path.suffix}'. Expected .nc, .zarr, or directory containing .nc files"
+        )
+
+    # Apply preprocessing
+    ds = preprocess_fn(ds)
+
+    return ds
