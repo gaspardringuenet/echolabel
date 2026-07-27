@@ -101,7 +101,7 @@ def _normalize_vars(
 
     configs = default_configs.copy()
     if custom_config is not None:
-        configs = {"CUSTOM": custom_config} | configs
+        configs["CUSTOM"] = custom_config
 
     for convention_name, config in configs.items():
         try:
