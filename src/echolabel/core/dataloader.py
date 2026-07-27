@@ -8,7 +8,11 @@ import xarray as xr
 
 logger = logging.getLogger(__name__)
 
-CONFIG_EP: dict[str, str | None] = {
+#### Default conventions to try on dataset ####
+
+type DataVarsConfig = dict[str, str | float | None]
+
+CONFIG_EP: DataVarsConfig = {
     "acouvar": "Sv",
     "cvar": "channel",
     "fvar": "frequency_nominal",
@@ -16,7 +20,7 @@ CONFIG_EP: dict[str, str | None] = {
     "zvar": "depth",
 }
 
-CONFIG_IMOS: dict[str, str | float | None] = {
+CONFIG_IMOS: DataVarsConfig = {
     "acouvar": "Sv",
     "cvar": "channel",
     "fvar": None,
@@ -25,16 +29,19 @@ CONFIG_IMOS: dict[str, str | float | None] = {
     "zvar": "depth",
 }
 
-DEFAULT_CONFIGS = {
+DEFAULT_CONFIGS: dict[str, DataVarsConfig] = {
     "Echopype": CONFIG_EP,
     "IMOS SOOP-BA": CONFIG_IMOS,
 }
 
 
+#### Normalization functions
+#
 def _normalize_vars_from_config(
     ds: xr.Dataset,
-    config: dict,
+    config: DataVarsConfig,
 ) -> xr.Dataset:
+    """Normalize a dataset using a given data variables config"""
 
     config = config.copy()
 
@@ -91,10 +98,10 @@ def _normalize_vars_from_config(
     return ds
 
 
-def _normalize_vars(
+def normalize_vars(
     ds: xr.Dataset,
-    default_configs: dict = DEFAULT_CONFIGS,
-    custom_config: dict | None = None,
+    default_configs: dict[str, DataVarsConfig] = DEFAULT_CONFIGS,
+    custom_config: DataVarsConfig | None = None,
 ) -> xr.Dataset:
 
     errors = {}
@@ -118,7 +125,7 @@ def _normalize_vars(
 
 def open_dataset(
     path: Path,
-    preprocess_fn: Callable[[xr.Dataset], xr.Dataset] = _normalize_vars,
+    preprocess_fn: Callable[[xr.Dataset], xr.Dataset],
 ) -> xr.Dataset:
     """
     Lazy-load an acoustic dataset.

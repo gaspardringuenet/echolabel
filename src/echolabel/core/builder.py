@@ -16,7 +16,7 @@ import xarray as xr
 from tqdm import tqdm
 
 from ..utils.images import array2image
-from .dataloader import _normalize_vars, open_dataset  # open_mask
+from .dataloader import normalize_vars, open_dataset  # open_mask
 from .manifest import ImageMetadata, ImagesDatasetManifest
 
 
@@ -36,7 +36,7 @@ def build_images_dataset(
 
     # Open source dataset
     source = Path(source)
-    preprocess_fn = partial(_normalize_vars, custom_config=datavars_config)
+    preprocess_fn = partial(normalize_vars, custom_config=datavars_config)
     ds_acou: xr.Dataset = open_dataset(source, preprocess_fn)
 
     # TODO Open binary mask dataset (if it exists)

@@ -65,7 +65,7 @@ def array2image(
         a = np.where(all_channels_na, np.ones_like(a) * bg_rgb[:3], a)
 
         # Convert to image
-        img = Image.fromarray(np.uint8(a * 255))
+        img = Image.fromarray((a * 255).astype(np.uint8))
 
     # If array has a single channel - (depth, ping_time) shape - apply Matplotlib cmap
     elif (len(a.shape) == 2) and (echogram_cmap != "RGB"):
