@@ -8,6 +8,7 @@ Note: currently some confusion between naming conventions:
 """
 
 from datetime import datetime
+from functools import partial
 from pathlib import Path
 from typing import List
 
@@ -15,13 +16,14 @@ import xarray as xr
 from tqdm import tqdm
 
 from ..utils.images import array2image
-from .dataloader import open_dataset  # open_mask
+from .dataloader import _normalize_vars, open_dataset  # open_mask
 from .manifest import ImageMetadata, ImagesDatasetManifest
 
 
 def build_images_dataset(
     source: str | Path,
     output_dir: Path,
+    datavars_config: dict[str, str | float | None],
     freqs_hz: float | List[float] | None = None,
     frame_width: int = 1000,
     range_samples_slice: slice = slice(0, None),
@@ -34,7 +36,8 @@ def build_images_dataset(
 
     # Open source dataset
     source = Path(source)
-    ds_acou: xr.Dataset = open_dataset(source)
+    preprocess_fn = partial(_normalize_vars, custom_config=datavars_config)
+    ds_acou: xr.Dataset = open_dataset(source, preprocess_fn)
 
     # TODO Open binary mask dataset (if it exists)
     # if bin_mask is not None:

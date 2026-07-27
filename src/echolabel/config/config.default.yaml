@@ -1,3 +1,12 @@
+# data convention
+datavars:
+    acouvar: Sv # Acoustic variable to display on echogram
+    tvar: time # Ping axis dimension
+    zvar: depth # Range axis dimension
+    cvar: channel # Channel dimension
+    fvar: null # (Optional) Frequency coordinate. Defaults to cvar.
+    fvar_unit_scale: 1000 # (Optional) Frequency unit conversion factor to Hz (1000 if coord is in kHz). Defaults to 1.
+
 # list which frequencies to display (empty list: use first channel)
 channels_frequency_nominal:
 
@@ -10,8 +19,8 @@ range_samples_slice: # y axis
 # colormapping
 vmin: -90.0
 vmax: -50.0
-echogram_cmap: "viridis"
-bg_color: "grey"
+echogram_cmap: viridis
+bg_color: grey
 
 # whether to run whith cached data (images + LabelMe shapes)
 reuse_images: false # TODO: change param name

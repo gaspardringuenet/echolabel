@@ -36,10 +36,12 @@ class EcholabelApp:
         reuse_images : bool
             Whether to reuse the existing images dataset in cache.
         """
+        output = Path(output)
 
         builder_params = dict(
             source=source,
             output_dir=self.cache.img_dataset,
+            datavars_config=self.cfg.datavars,
             freqs_hz=self.cfg.channels_frequency_nominal,
             frame_width=self.cfg.frame_width,
             range_samples_slice=self.cfg.range_samples_slice,
@@ -48,7 +50,6 @@ class EcholabelApp:
             echogram_cmap=self.cfg.echogram_cmap,
             bg_color=self.cfg.bg_color,
         )
-        output = Path(output)
         manifest = _prepare_labelme_dataset(self.cache, self.cfg.reuse_images, **builder_params)
         _load_annotations(output, self.cache, manifest)
         _run_labelme(self.cache)

@@ -43,6 +43,8 @@ def _normalize_vars_from_config(
         fvar_unit_scale = config.pop("fvar_unit_scale")
     except KeyError:
         fvar_unit_scale = 1
+    if fvar_unit_scale is None:
+        fvar_unit_scale = 1
 
     # Check that all provided var names exist in dataset
     non_none_values = {v for v in config.values() if v is not None}
@@ -92,11 +94,16 @@ def _normalize_vars_from_config(
 def _normalize_vars(
     ds: xr.Dataset,
     default_configs: dict = DEFAULT_CONFIGS,
+    custom_config: dict | None = None,
 ) -> xr.Dataset:
 
     errors = {}
 
-    for convention_name, config in default_configs.items():
+    configs = default_configs.copy()
+    if custom_config is not None:
+        configs = {"CUSTOM": custom_config} | configs
+
+    for convention_name, config in configs.items():
         try:
             ds = _normalize_vars_from_config(ds, config)
         except ValueError as e:
@@ -109,7 +116,10 @@ def _normalize_vars(
     raise ValueError(f"Acoustic dataset could not be normalized. Per-convention errors:\n{errors}")
 
 
-def open_dataset(path: Path, preprocess_fn: Callable[[xr.Dataset], xr.Dataset] = _normalize_vars) -> xr.Dataset:
+def open_dataset(
+    path: Path,
+    preprocess_fn: Callable[[xr.Dataset], xr.Dataset] = _normalize_vars,
+) -> xr.Dataset:
     """
     Lazy-load an acoustic dataset.
 

@@ -51,6 +51,7 @@ def init_user_config() -> Path:
 class Config:
     "Default configuration for echolabel app"
 
+    datavars: dict[str, str | float | None]
     channels_frequency_nominal: List[float]
     frame_width: int
     range_samples_slice: slice
