@@ -117,8 +117,7 @@ def normalize_vars(
             errors[convention_name] = e
             continue
         else:
-            logger.info(f"Normalized dataset using {convention_name} convention.")
-            print(f"Normalized dataset using {convention_name} convention.")
+            logger.debug(f"Normalized dataset using {convention_name} convention.")
             return ds
     raise ValueError(f"Acoustic dataset could not be normalized. Per-convention errors:\n{errors}")
 

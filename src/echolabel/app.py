@@ -1,9 +1,9 @@
+import glob
 import json
 import os
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Optional
 
 import echoregions as er
 import platformdirs
@@ -13,13 +13,13 @@ from echolabel.config.cache import CachePathsConfig
 from echolabel.config.config import Config
 from echolabel.core.builder import build_images_dataset
 from echolabel.core.manifest import ImagesDatasetManifest
-from echolabel.echoregions_extension import labelme_reader, labelme_writer
+from echolabel.regions2d_extension import labelme_reader, labelme_writer
 
 
 class EcholabelApp:
-    """Container class for the Echolabel processing"""
+    """Container class for the Echolabel app."""
 
-    def __init__(self, config: Config, cache_dir: Optional[Path] = None):
+    def __init__(self, config: Config, cache_dir: Path | None = None):
         self.name = "echolabel"
         self.cfg = config
         cache_dir = cache_dir or Path(platformdirs.user_cache_dir(self.name))
@@ -36,23 +36,34 @@ class EcholabelApp:
         reuse_images : bool
             Whether to reuse the existing images dataset in cache.
         """
+
+        # Defensive typing of output
         output = Path(output)
 
-        builder_params = dict(
-            source=source,
-            output_dir=self.cache.img_dataset,
-            datavars_config=self.cfg.datavars,
-            freqs_hz=self.cfg.channels_frequency_nominal,
-            frame_width=self.cfg.frame_width,
-            range_samples_slice=self.cfg.range_samples_slice,
-            vmin=self.cfg.vmin,
-            vmax=self.cfg.vmax,
-            echogram_cmap=self.cfg.echogram_cmap,
-            bg_color=self.cfg.bg_color,
-        )
+        # Preparing params for builder
+        builder_params = {
+            "source": source,
+            "output_dir": self.cache.img_dataset,
+            "datavars_config": self.cfg.datavars,
+            "freqs_hz": self.cfg.channels_frequency_nominal,
+            "frame_width": self.cfg.frame_width,
+            "range_samples_slice": self.cfg.range_samples_slice,
+            "vmin": self.cfg.vmin,
+            "vmax": self.cfg.vmax,
+            "echogram_cmap": self.cfg.echogram_cmap,
+            "bg_color": self.cfg.bg_color,
+        }
+
+        # Build images dataset and fetch metadata manifest
         manifest = _prepare_labelme_dataset(self.cache, self.cfg.reuse_images, **builder_params)
+
+        # Parse shape annotation file into per-image annotation JSON in LabelMe format
         _load_annotations(output, self.cache, manifest)
+
+        # Open LabelMe on images dataset to edit / create new shapes
         _run_labelme(self.cache)
+
+        # Parse LabelMe internal shapes JSON to a single CSV file with (time, depth) attributes
         _parse_to_csv(self.cache, manifest, output)
 
 
@@ -61,23 +72,33 @@ def _prepare_labelme_dataset(
     reuse_images: bool,
     **builder_params,
 ) -> ImagesDatasetManifest:
+    """
+    Build the images dataset in cache and return manifest (clear cache
+    beforehand).
+
+    If the reuse_images is True, tries to load existing manifest from cache
+    (only clear JSON files).
+    """
 
     if reuse_images:
         try:
+            # Load existing manifest
             manifest = ImagesDatasetManifest.load(cache_cfg.img_dataset)
-        except Exception as e:
+        except FileNotFoundError as e:
             print(f"Failed to load manifest. Rebuilding images dataset.\n{e}")
-            # Clear cache_cfg directory
-            shutil.rmtree(cache_cfg.root)
-            cache_cfg.mkdir()
-            # Build new dataset
-            manifest = build_images_dataset(**builder_params)
-    else:
-        # Clear cache_cfg directory
-        shutil.rmtree(cache_cfg.root)
-        cache_cfg.mkdir()
-        # Build new dataset
-        manifest = build_images_dataset(**builder_params)
+        else:
+            # Clear JSON files
+            json_files = glob.glob(str(cache_cfg.img_dataset / "*.json"))
+            for file in json_files:
+                os.remove(file)
+            # Return manifest
+            return manifest
+
+    # Clear cache directory
+    shutil.rmtree(cache_cfg.root)
+    cache_cfg.mkdir()
+    # Build new dataset
+    manifest = build_images_dataset(**builder_params)
 
     return manifest
 
@@ -115,6 +136,7 @@ def _run_labelme(cache_cfg: CachePathsConfig) -> None:
             ],
             stdout=log,
             stderr=log,
+            check=False,
         )
 
 

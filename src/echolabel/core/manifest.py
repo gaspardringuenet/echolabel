@@ -1,7 +1,7 @@
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import List, Literal, Tuple
+from typing import Literal
 
 import numpy as np
 import numpy.typing as npt
@@ -31,7 +31,7 @@ class ImageMetadata:
             range_axis=range_axis_values,
         )
 
-    def load_coordinates(self, output_dir: Path) -> Tuple[npt.NDArray, npt.NDArray]:
+    def load_coordinates(self, output_dir: Path) -> tuple[npt.NDArray, npt.NDArray]:
         """Load coordinate arrays"""
         stem = Path(self.filename).stem
         data = np.load(output_dir / f"{stem}_coords.npz")
@@ -40,9 +40,9 @@ class ImageMetadata:
     def pixel_to_real_coords(
         self,
         output_dir: Path,
-        x_pixel: int | List[int] | npt.NDArray[np.integer],
-        y_pixel: int | List[int] | npt.NDArray[np.integer],
-    ) -> Tuple[npt.NDArray, npt.NDArray]:
+        x_pixel: int | list[int] | npt.NDArray[np.integer],
+        y_pixel: int | list[int] | npt.NDArray[np.integer],
+    ) -> tuple[npt.NDArray, npt.NDArray]:
         """Convert pixel coordinates to real-world (ping_axis, range_axis) coordinates"""
 
         # Load real coordinates arrays
@@ -68,12 +68,12 @@ class ImageMetadata:
 class ImagesDatasetManifest:
     """Manifest for an images dataset"""
 
-    source: str | List[str]
+    source: str | list[str]
     created_at: str
     shape: dict[str, int]
-    channels: List[float] | Literal["first"]
+    freqs_hz: float | list[float] | Literal["first"]
     viz_params: dict
-    images: List[ImageMetadata]
+    images: list[ImageMetadata]
 
     def save(self, cache_dir: Path):
         """Save manifest to JSON"""
@@ -102,9 +102,9 @@ class ImagesDatasetManifest:
         self,
         cache_dir: Path,
         filename: str,
-        x_pixel: int | List[int] | npt.NDArray[np.integer],
-        y_pixel: int | List[int] | npt.NDArray[np.integer],
-    ) -> Tuple[npt.NDArray, npt.NDArray]:
+        x_pixel: int | list[int] | npt.NDArray[np.integer],
+        y_pixel: int | list[int] | npt.NDArray[np.integer],
+    ) -> tuple[npt.NDArray, npt.NDArray]:
         """
         Convert pixel coordinates to real-worlds coordinates for a given image
         """
@@ -118,8 +118,8 @@ class ImagesDatasetManifest:
         self,
         cache_dir: Path,
         filename: str,
-        points: List[int],
-    ) -> Tuple[npt.NDArray, npt.NDArray]:
+        points: list[int],
+    ) -> tuple[npt.NDArray, npt.NDArray]:
         """
         Convert a Labelme polygon annotation to real-world coordinates
         """
@@ -136,19 +136,30 @@ class ImagesDatasetManifest:
         self,
         cache_dir: Path,
         filename: str,
-        points_ping_axis_values: List[float | np.datetime64],
-        points_range_axis_values: List[float],
-    ) -> List[List[int]]:
+        points_ping_axis_values: npt.NDArray[np.floating | np.datetime64],
+        points_range_axis_values: npt.NDArray[np.floating],
+    ) -> list[list[int]]:
         """
-        Convert real-world coordinates to a Labelme polygon
+        Convert real-world coordinates to a Labelme polygon.
+        No-interpolation: floor to pixel.
         """
 
         img_meta = self.get_image_metadata(filename)
         ping_axis_values, range_axis_values = img_meta.load_coordinates(cache_dir)
 
-        xs = np.where(points_ping_axis_values == ping_axis_values)
-        ys = np.where(points_range_axis_values == range_axis_values)
+        # Convert real-world coordinates to pixel indices
+        x_pixels = np.searchsorted(ping_axis_values, points_ping_axis_values)
+        y_pixels = np.searchsorted(range_axis_values, points_range_axis_values)
 
-        points = [[int(x), int(y)] for (x, y) in zip(xs, ys)]
+        # Clamp to image bounds to catch any floating point issues
+        x_pixels = np.clip(x_pixels, 0, len(ping_axis_values) - 1)
+        y_pixels = np.clip(y_pixels, 0, len(range_axis_values) - 1)
+
+        # Floor and set dtype to int
+        x_pixels = np.floor(x_pixels).astype(np.int32)
+        x_pixels = np.floor(x_pixels).astype(np.int32)
+
+        # Two arrays -> list of lists
+        points = [[x.item(), y.item()] for x, y in zip(x_pixels, y_pixels)]
 
         return points

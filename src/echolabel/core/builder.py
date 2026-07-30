@@ -7,10 +7,9 @@ Note: currently some confusion between naming conventions:
 * Real-world naming : 'ping_time_*', 'range_*'
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from functools import partial
 from pathlib import Path
-from typing import List
 
 import xarray as xr
 from tqdm import tqdm
@@ -24,7 +23,7 @@ def build_images_dataset(
     source: str | Path,
     output_dir: Path,
     datavars_config: dict[str, str | float | None],
-    freqs_hz: float | List[float] | None = None,
+    freqs_hz: float | list[float] | None = None,
     frame_width: int = 1000,
     range_samples_slice: slice = slice(0, None),
     bin_mask: str | Path | None = None,  # binary mask: overlay negative region with alpha to highlight positive
@@ -55,7 +54,7 @@ def build_images_dataset(
             da_sub: xr.DataArray = ds_acou.isel(
                 tvar=slice(t_start, t_end),
                 zvar=range_samples_slice,
-                cvar=0,
+                fvar=0,
             ).acouvar
 
         else:
@@ -97,9 +96,9 @@ def build_images_dataset(
     # Save manifest file
     manifest = ImagesDatasetManifest(
         source=str(source),
-        created_at=datetime.now().isoformat(),
-        shape=dict(zip(da_sub.dims, da_sub.shape)),  # type: ignore
-        channels=list(da_sub.channel.values) if "channel" in da_sub.dims else "first",  # type: ignore
+        created_at=datetime.now(UTC).isoformat(),
+        shape=dict(da_sub.sizes),  # type: ignore
+        freqs_hz=freqs_hz if (freqs_hz is not None) else "first",
         viz_params=viz_params,
         images=images_metadata,
     )

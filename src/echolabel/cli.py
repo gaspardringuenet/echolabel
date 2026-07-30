@@ -27,7 +27,7 @@ def cache():
     """Show default cache directory"""
     cfg = Config.load()
     app = EcholabelApp(cfg)
-    click.echo(f"Default cache directory - {app.cache.root}")
+    click.echo(app.cache.root)
 
 
 @cli.command()

@@ -2,7 +2,6 @@ import glob
 import json
 import warnings
 from pathlib import Path
-from typing import Tuple
 
 import numpy as np
 import numpy.typing as npt
@@ -46,9 +45,10 @@ def parse_echolabel(
 
     # Parse all JSON files in the labelme output subfolder
     for labelme_file in glob.glob(str(cache_cfg.labelme / "*.json")):
+        json_data = _load_json(labelme_file)
         data_list.append(
             parse_labelme(
-                input_file=labelme_file,
+                data=json_data,
                 cache_dir=cache_cfg.img_dataset,
                 manifest=manifest,
             )
@@ -75,30 +75,24 @@ def parse_echolabel(
 
 
 def parse_labelme(
-    input_file: str,
-    cache_dir: str | Path,
+    data: dict,
     manifest: ImagesDatasetManifest,
+    cache_dir: str | Path,
 ) -> pd.DataFrame:
-    """Parse a Labelme JSON file. Points are related to a
-    subset of the acoustic data printed as an echogram image. The data manifest file
-    provides information on the images' metadata (especially time and depth values)._
+    """
+    Parse a Labelme JSON file. Points are related to a subset of the acoustic
+    data printed as an echogram image. The data manifest file provides
+    information on the images' metadata (especially time and depth values).
     """
 
     creation_types_conversion_dict: dict = {"polygon": "2", "rectangle": "3"}
 
-    # Check for validity of input file
-    check_file(input_file, "JSON")
-
-    # Read files
-    with open(input_file) as f:
-        labelme_annotation: dict = json.load(f)
-
     # Find image file in annotation
-    img_filename = Path(labelme_annotation["imagePath"]).name
+    img_filename = Path(data["imagePath"]).name
 
     rows = []
 
-    for idx, shape in enumerate(labelme_annotation["shapes"]):
+    for idx, shape in enumerate(data["shapes"]):
         # Assume the shape is a polygon (would need reshaping if not)
         if shape["shape_type"] not in ["polygon", "rectangle"]:
             continue
@@ -118,9 +112,9 @@ def parse_labelme(
         # Create row
         row = {
             # Minimal requirements for Regions2D methods (except .to_evr)
-            "region_id": shape.get("id", idx),  # Must be an int
+            "region_id": shape.get("id", idx + 1),  # 1-indexed by default
             "region_name": shape.get("label", ""),
-            "region_class": shape.get("label", ""),  # Using label as class
+            "region_class": shape.get("label", ""),  # Using label as class (TODO: maybe remove)
             "time": time,
             "depth": depth,
             "region_bbox_left": left,
@@ -129,21 +123,39 @@ def parse_labelme(
             "region_bbox_bottom": bottom,
             # EVR compatibility
             "echoview_version": "13.0.378.44817",  # from EchoRegions' doc - https://echoregions.readthedocs.io/en/latest/Regions2D_functionality.html
-            "region_structure_version": "13",
-            "region_creation_type": creation_types_conversion_dict.get(shape.get("shape_type"), "-1"),  # noqa "Polygon tool" (3 for rectangle)
-            "region_type": "1",  # "analysis"
+            "region_structure_version": 13,
+            "region_creation_type": int(creation_types_conversion_dict.get(shape.get("shape_type"), "-1")),  # noqa "Polygon tool" (3 for rectangle)
+            "region_type": 1,  # "analysis"
             "region_notes": [],
             # Additional attributes
             "flags": [k for (k, v) in shape.get("flags", {}).items() if v],
-            "group_id": shape.get("group_id", None),
-            "description": shape.get("description", ""),
+            # Use np.nan for None/empty values for CSV compatibility
+            "group_id": shape.get("group_id") if shape.get("group_id") is not None else np.nan,
+            "description": shape.get("description") if shape.get("description") else np.nan,
         }
 
         rows.append(row)
 
     df = pd.DataFrame(rows)
 
+    # Ensure correct dtypes for columns that may contain only NaN values
+    # pandas infers float64 for all-NaN columns, but we need object dtype
+    df["description"] = df["description"].astype("object")
+
     return df
+
+
+def _load_json(input_file: str) -> dict:
+    """Load JSON file. Check file validity using Echoregions' IO utility."""
+
+    # Check for validity of input file
+    check_file(input_file, "JSON")
+
+    # Read files
+    with open(input_file) as f:
+        data: dict = json.load(f)
+
+    return data
 
 
 def _format_rectangle(
@@ -151,7 +163,7 @@ def _format_rectangle(
     right: np.datetime64,
     top: float,
     bottom: float,
-) -> Tuple[npt.NDArray[np.datetime64], npt.NDArray[np.float32]]:
+) -> tuple[npt.NDArray[np.datetime64], npt.NDArray[np.float32]]:
     """
     Format rectangle to be EVR compatible: a list of points in order:
         1    4

@@ -1,10 +1,35 @@
+from collections.abc import Callable
 from pathlib import Path
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 from echoregions.regions2d import Regions2D
 
 from ..core.manifest import ImagesDatasetManifest
+
+
+def _rectangle_to_labelme(
+    times: npt.NDArray[np.datetime64],
+    depths: npt.NDArray[np.floating],
+) -> tuple[npt.NDArray[np.datetime64], npt.NDArray[np.floating]]:
+    """
+    Select 2 diagonaly opposed points in a 4 points rectangle polygon.
+
+    The result corresponds to the LabelMe representation of a rectangle.
+    (Still requires converting to a list of [i, j] pixel coordinates,
+    done using manifest method.)
+    """
+    return (
+        np.array([np.min(times), np.max(times)]),
+        np.array([np.min(depths), np.max(depths)]),
+    )
+
+
+shape_tranforms_registry: dict[str, Callable] = {
+    "polygon": (lambda *x: x),
+    "rectangle": _rectangle_to_labelme,
+}
 
 
 def regions2d_to_labelme(
@@ -72,29 +97,25 @@ def regions2d_to_labelme(
                 times = row["time"]
                 depths = row["depth"]
 
-                if not isinstance(times, (list, np.ndarray)) or not isinstance(depths, (list, np.ndarray)):
-                    raise ValueError(f"Expected time/depth arrays, got {type(times)}/{type(depths)}")
+                if not isinstance(times, np.ndarray) or not isinstance(depths, np.ndarray):
+                    raise TypeError(f"Expected time/depth arrays, got {type(times)}/{type(depths)}")
 
-                # Convert real-world coordinates to pixel indices
-                x_pixels = np.searchsorted(time_coord, times)
-                y_pixels = np.searchsorted(depth_coord, depths)
-
-                # Clamp to image bounds to catch any floating point issues
-                x_pixels = np.clip(x_pixels, 0, len(time_coord) - 1)
-                y_pixels = np.clip(y_pixels, 0, len(depth_coord) - 1)
-
-                # Shape type
                 region_creation_type = row.get("region_creation_type", None)
 
-                if region_creation_type is not None and int(region_creation_type) == 3:  # rectangle
+                if region_creation_type is not None and int(region_creation_type) == 3:
                     shape_type = "rectangle"
-                    points = [
-                        [float(np.min(x_pixels)), float(np.min(y_pixels))],
-                        [float(np.max(x_pixels)), float(np.max(y_pixels))],
-                    ]
                 else:
-                    shape_type = "polygon"  # any type that is not rectangle is writen as a polygon
-                    points = [[float(x), float(y)] for x, y in zip(x_pixels, y_pixels)]
+                    shape_type = "polygon"
+
+                trans_fn = shape_tranforms_registry[shape_type]
+                times, depths = trans_fn(times, depths)
+
+                points = manifest.real_coords_to_labelme_polygon(
+                    cache_dir=img_dataset_dir,
+                    filename=img_meta.filename,
+                    points_ping_axis_values=times,
+                    points_range_axis_values=depths,
+                )
 
                 # Build shape metadata
                 shape = {
@@ -110,7 +131,7 @@ def regions2d_to_labelme(
                 img_annotations["shapes"].append(shape)
                 parsed_ids.append(row["region_id"])
 
-            except Exception as e:
+            except (ValueError, TypeError) as e:
                 print(f"Failed to parse region {row['region_id']}: {e}")
                 failed_ids.append(row["region_id"])
                 continue

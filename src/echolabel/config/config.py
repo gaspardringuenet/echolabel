@@ -3,11 +3,9 @@
 import os
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import List
 
 import yaml
 
-# Python 3.9+
 try:
     from importlib.resources import files
 except ImportError:
@@ -40,9 +38,8 @@ def init_user_config() -> Path:
     if not user_config.exists():
         # Copy default config from package
         default_config = files("echolabel").joinpath("config/config.default.yaml")
-        with default_config.open("r") as src:
-            with open(user_config, "w") as dst:
-                dst.write(src.read())
+        with default_config.open("r") as src, open(user_config, "w") as dst:
+            dst.write(src.read())
 
     return user_config
 
@@ -52,7 +49,7 @@ class Config:
     "Default configuration for echolabel app"
 
     datavars: dict[str, str | float | None]
-    channels_frequency_nominal: List[float]
+    channels_frequency_nominal: list[float]
     frame_width: int
     range_samples_slice: slice
     vmin: float

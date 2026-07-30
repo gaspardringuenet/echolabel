@@ -22,5 +22,5 @@ vmax: -50.0
 echogram_cmap: viridis
 bg_color: grey
 
-# whether to run whith cached data (images + LabelMe shapes)
-reuse_images: false # TODO: change param name
+# whether to run whith cached images dataset
+reuse_images: false
