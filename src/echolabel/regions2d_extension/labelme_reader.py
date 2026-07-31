@@ -124,7 +124,9 @@ def parse_labelme(
             # EVR compatibility
             "echoview_version": "13.0.378.44817",  # from EchoRegions' doc - https://echoregions.readthedocs.io/en/latest/Regions2D_functionality.html
             "region_structure_version": 13,
-            "region_creation_type": int(creation_types_conversion_dict.get(shape.get("shape_type"), "-1")),  # noqa "Polygon tool" (3 for rectangle)
+            "region_creation_type": int(
+                creation_types_conversion_dict.get(shape.get("shape_type"), "-1")
+            ),  # "Polygon tool" (3 for rectangle)
             "region_type": 1,  # "analysis"
             "region_notes": [],
             # Additional attributes
