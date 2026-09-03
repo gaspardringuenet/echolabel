@@ -8,7 +8,7 @@ import requests
 from tqdm import tqdm
 
 # URL adress of demo data file
-URL = "https://github.com/gaspardringuenet/echolabel/releases/download/demo-data-v1/demo.zip"
+URL = "https://github.com/gaspardringuenet/echolabel/releases/download/demo-data-v2/demo.zip"
 
 # Init logger
 logger = logging.getLogger(__name__)

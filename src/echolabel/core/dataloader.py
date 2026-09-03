@@ -1,7 +1,7 @@
 import logging
 import os
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 import numpy as np
 import xarray as xr
@@ -90,7 +90,7 @@ def _normalize_vars_from_config(
     ds = ds.rename_vars(rename_dict)  # rename variables
 
     # Drop dimensions other than normalized
-    ds = ds.drop_dims(set(ds.dims) - set(["cvar", "tvar", "zvar"]))
+    ds = ds.drop_dims(set(ds.dims) - {"cvar", "tvar", "zvar"})
 
     # Swap cvar dim for fvar, enabling sel(fvar=...) and isel(fvar=...)
     ds = ds.swap_dims({"cvar": "fvar"})

@@ -11,7 +11,6 @@ from echolabel.utils.demo import download_demo_data
 @click.group()
 def cli():
     """Echolabel - Minimalist echogram annotation software"""
-    pass
 
 
 @cli.command()
