@@ -1,4 +1,7 @@
-# `echolabel` - Minimalist Interactive Echogram Data Extraction Tools
+# `echolabel` - Interactive Echogram Annotation
+
+> A [Labelme](https://github.com/wkentaro/labelme) wrapper enabling fast echogram annotation with CSV outputs compatible
+> with [Echoregions](https://github.com/echostack-org/echoregions/).
 
 ![](image.png)
 
