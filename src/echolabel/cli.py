@@ -62,7 +62,10 @@ def demo(output_dir):
     "-o",
     required=True,
     type=click.Path(path_type=Path),
-    help="""CSV annotation file to create or edit.""",
+    help="""CSV annotation file to create or edit. Required columns for
+        reading: region_id; time; depth.
+        Optional columns: region_name (for label); description; EVR columns (e.g. region_creation_type).
+        """,
 )
 @click.option(
     "--config",

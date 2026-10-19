@@ -3,6 +3,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import echoregions as er
@@ -129,6 +130,8 @@ def _run_labelme(cache_cfg: CachePathsConfig) -> None:
     with open(cache_cfg.labelme_logs, "w") as log:
         subprocess.run(
             [
+                sys.executable,
+                "-m",
                 "labelme",
                 str(cache_cfg.img_dataset),
                 "--output",

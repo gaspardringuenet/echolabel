@@ -119,7 +119,7 @@ def regions2d_to_labelme(
 
                 # Build shape metadata
                 shape = {
-                    "label": row["region_name"],
+                    "label": row.get("region_name", ".NONAME"),
                     "points": points,
                     "group_id": None if pd.isna(row.get("group_id")) else int(row.get("group_id")),
                     "description": "" if pd.isna(row.get("description")) else row.get("description", ""),
