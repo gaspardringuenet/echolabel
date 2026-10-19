@@ -26,3 +26,4 @@ wheels/
 .DS_Store
 /.quarto/
 **/*.quarto_ipynb
+.ruff_cache

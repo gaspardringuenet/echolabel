@@ -60,15 +60,16 @@ Columns missing from the source CSV are added on export.
 
 | Situation | Behaviour |
 |---|---|
-| Region entirely above the first image | Skipped, with a printed warning. The row is not exported. |
+| Region with no overlap with any image (above, below, or outside the time range) or with invalid geometry | Not shown in LabelMe, with a printed warning. The row is kept in the CSV unchanged. |
 | Region crossing an image limit, unedited | The outside part is kept in the CSV. |
-| Region crossing an image limit, partly deleted in LabelMe | The outside part is deleted too, with a warning. |
-| Region fully deleted in LabelMe | The region is removed from the CSV. |
-| Shapes of one region split into several disconnected parts | The first part keeps `region_id`. The others get new IDs. |
-| Shapes of different labels in one region | Never merged. Each label keeps its own shape. |
+| Region crossing an image limit, with a visible shape deleted or modified in LabelMe (points, label, flags, group or description changed) | The outside part is dropped too, with a warning. Adding shapes without touching existing ones keeps it. |
+| All visible shapes of a region deleted in LabelMe | The region is removed from the CSV, outside part included. |
+| Shapes of one region forming several disconnected parts | Shapes are merged per label. The first part keeps `region_id`. The others get new IDs. |
+| Shapes of different labels in one region | Never merged. Each label keeps its own shape, but only the first resulting part keeps `region_id`. |
+| Shapes without a `region_id` | Exported as new regions with new IDs. |
 | Rectangle with non-aligned corners | Imported as a polygon, with a warning. |
-| Rectangle crossing an image limit | Exported as a polygon once edited, because LabelMe cannot store out-of-image points. |
-| Unchanged rows | Written back as they were read. |
+| Rectangle crossing an image limit, edited | Exported as a rectangle if all its shapes are rectangles and, together with the kept outside part, they still form an axis-aligned box. Otherwise exported as a polygon. |
+| Unchanged rows | Written back with their original values. Only `echolabel_version` is updated, and a missing `shape_type` becomes `polygon`. |
 
 ## Licence
 
