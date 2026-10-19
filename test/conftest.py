@@ -251,11 +251,11 @@ def sample_csv_file(tmp_path):
     # Create minimal CSV with required structure for echoregions
     # Generated from LabelMe annotations with corrected depth values
     csv_content = """
-region_id,region_name,region_class,time,depth,region_bbox_left,region_bbox_right,region_bbox_top,region_bbox_bottom,echoview_version,region_structure_version,region_creation_type,region_type,region_notes,flags,group_id,description
-1,Fish_0,Fish_0,"['2000-01-01T00:00:27' '2000-01-01T00:00:18' '2000-01-01T00:00:23' '2000-01-01T00:00:48' '2000-01-01T00:00:45']",[18 21 29 24 16],2000-01-01 00:00:18,2000-01-01 00:00:48,16,29,13.0.378.44817,13,2,1,[],[],,"Some fish region"
-2,Other_1,Other_1,"['2000-01-01T00:01:19' '2000-01-01T00:01:19' '2000-01-01T00:01:48' '2000-01-01T00:01:48']",[16 27 27 16],2000-01-01 00:01:19,2000-01-01 00:01:48,16,27,13.0.378.44817,13,3,1,[],[],,""
-3,Fish_2,Fish_2,"['2000-01-01T00:02:27' '2000-01-01T00:02:18' '2000-01-01T00:02:23' '2000-01-01T00:02:48' '2000-01-01T00:02:45']",[18 21 29 24 16],2000-01-01 00:02:18,2000-01-01 00:02:48,16,29,13.0.378.44817,13,2,1,[],[],,""
-4,Other_2,Other_2,"['2000-01-01T00:02:19' '2000-01-01T00:02:19' '2000-01-01T00:02:48' '2000-01-01T00:02:48']",[16 27 27 16],2000-01-01 00:02:19,2000-01-01 00:02:48,16,27,13.0.378.44817,13,3,1,[],[],,""
+region_id,region_name,region_class,time,depth,region_bbox_left,region_bbox_right,region_bbox_top,region_bbox_bottom,echoview_version,region_structure_version,region_creation_type,region_type,region_notes,flags,group_id,description,shape_type
+1,Fish_0,Fish_0,"['2000-01-01T00:00:27' '2000-01-01T00:00:18' '2000-01-01T00:00:23' '2000-01-01T00:00:48' '2000-01-01T00:00:45']",[18 21 29 24 16],2000-01-01 00:00:18,2000-01-01 00:00:48,16,29,13.0.378.44817,13,2,1,[],[],,"Some fish region",polygon
+2,Other_1,Other_1,"['2000-01-01T00:01:19' '2000-01-01T00:01:19' '2000-01-01T00:01:48' '2000-01-01T00:01:48']",[16 27 27 16],2000-01-01 00:01:19,2000-01-01 00:01:48,16,27,13.0.378.44817,13,3,1,[],[],,"",rectangle
+3,Fish_2,Fish_2,"['2000-01-01T00:02:27' '2000-01-01T00:02:18' '2000-01-01T00:02:23' '2000-01-01T00:02:48' '2000-01-01T00:02:45']",[18 21 29 24 16],2000-01-01 00:02:18,2000-01-01 00:02:48,16,29,13.0.378.44817,13,2,1,[],[],,"",polygon
+4,Other_2,Other_2,"['2000-01-01T00:02:19' '2000-01-01T00:02:19' '2000-01-01T00:02:48' '2000-01-01T00:02:48']",[16 27 27 16],2000-01-01 00:02:19,2000-01-01 00:02:48,16,27,13.0.378.44817,13,3,1,[],[],,"",rectangle
     """
 
     csv_path.write_text(csv_content.strip())

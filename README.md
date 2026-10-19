@@ -2,8 +2,74 @@
 
 ![](image.png)
 
-# TO-DO
+## Installation
 
-- [ ] Add a bin_mask argument to allow masking samples with a given color & alpha (useful when inspecting classification results) ON GOING
-- [x] Add a possibility to use various coordinate names ("time" or "ping_time", "depth" or "range") in config
-- [ ] Propper logging with debug mode
+Requires Python 3.12 or newer.
+
+```bash
+pip install "git+https://github.com/gaspardringuenet/echolabel.git"
+```
+
+This installs the `echolabel` command.
+
+## Quick start
+
+```bash
+echolabel process -s data.zarr -o regions.csv -f 38000 --cmap magma
+```
+
+- `-s/--source`: an echogram source (`.nc`, `.zarr`, or a directory of `.nc` files).
+- `-o/--output`: the region CSV to create, or to edit if it already exists.
+- `-f/--freqs-hz`: nominal frequency(ies) to use, repeatable.
+- `--vmin`, `--vmax`, `--cmap`: display settings for the echogram images.
+- `--reuse-images/--no-reuse-images`: reuse cached echogram images.
+- `-c/--config`: optional configuration file.
+
+Run `echolabel process --help` for all options.
+
+The workflow:
+
+1. Echolabel renders the echogram into images and writes one LabelMe JSON per image.
+2. You annotate the regions in LabelMe.
+3. Echolabel reads the JSON files back and writes the CSV.
+
+## Main features
+
+- **CSV in and out.** Regions are stored as CSV, compatible with Echoregions.
+- **Required columns:** `region_id`, `time`, `depth`. The `region_name` column becomes the LabelMe label. A `shape_type` column is optional.
+- **Pass-through columns.** Any other column (e.g. `region_class`, `region_bbox_*`) is carried through unchanged. `region_bbox_*` is recomputed from the geometry on export.
+- **Depth clipping.** Regions that cross the top or bottom of an image are clipped to it for annotation. The unclipped region is kept in the CSV.
+- **Time splitting.** Regions spanning several images are split into one shape per image. On export, shapes are merged back by `region_id` when they have the same label.
+- **Rectangles.** Rectangles are exported with `shape_type` set to `rectangle`, using their four corners. On import, a row becomes a LabelMe rectangle when `shape_type` is `rectangle`, it has four points, and it is axis-aligned. This lets rectangles be edited as rectangles in a later run.
+- **Region tracking.** `region_id` is kept across CSV → LabelMe → CSV, so existing regions keep their IDs.
+- **Backup.** Before an existing output CSV is overwritten, it is copied to `<name>_backup.csv`.
+
+## Output
+
+Each exported row contains:
+
+- `region_id`, `time`, `depth`, and the pass-through columns from the input
+- `region_name` (the LabelMe label)
+- `shape_type` (`polygon` or `rectangle`)
+- `echolabel_version`, `flags`, `group_id`, `description`, taken from the LabelMe JSON
+- `region_bbox_*`, recomputed from the geometry
+
+Columns missing from the source CSV are added on export.
+
+## Limit-case behaviour
+
+| Situation | Behaviour |
+|---|---|
+| Region entirely above the first image | Skipped, with a printed warning. The row is not exported. |
+| Region crossing an image limit, unedited | The outside part is kept in the CSV. |
+| Region crossing an image limit, partly deleted in LabelMe | The outside part is deleted too, with a warning. |
+| Region fully deleted in LabelMe | The region is removed from the CSV. |
+| Shapes of one region split into several disconnected parts | The first part keeps `region_id`. The others get new IDs. |
+| Shapes of different labels in one region | Never merged. Each label keeps its own shape. |
+| Rectangle with non-aligned corners | Imported as a polygon, with a warning. |
+| Rectangle crossing an image limit | Exported as a polygon once edited, because LabelMe cannot store out-of-image points. |
+| Unchanged rows | Written back as they were read. |
+
+## Licence
+
+This project is licensed under the GNU General Public License v3.0. See [LICENSE](LICENSE).

@@ -1,143 +1,105 @@
-from collections.abc import Callable
 from pathlib import Path
 
-import numpy as np
-import numpy.typing as npt
 import pandas as pd
 from echoregions.regions2d import Regions2D
 
 from ..core.manifest import ImagesDatasetManifest
-
-
-def _rectangle_to_labelme(
-    times: npt.NDArray[np.datetime64],
-    depths: npt.NDArray[np.floating],
-) -> tuple[npt.NDArray[np.datetime64], npt.NDArray[np.floating]]:
-    """
-    Select 2 diagonaly opposed points in a 4 points rectangle polygon.
-
-    The result corresponds to the LabelMe representation of a rectangle.
-    (Still requires converting to a list of [i, j] pixel coordinates,
-    done using manifest method.)
-    """
-    return (
-        np.array([np.min(times), np.max(times)]),
-        np.array([np.min(depths), np.max(depths)]),
-    )
-
-
-shape_tranforms_registry: dict[str, Callable] = {
-    "polygon": (lambda *x: x),
-    "rectangle": _rectangle_to_labelme,
-}
+from .shapes import (
+    MAPPED_COLUMNS,
+    flags_to_dict,
+    is_missing,
+    is_rectangle_row,
+    json_safe,
+    label_of,
+    load_image_grids,
+    region_to_shapes,
+    row_geometry,
+)
 
 
 def regions2d_to_labelme(
-    regions: Regions2D,
+    regions: Regions2D | pd.DataFrame,
     manifest: ImagesDatasetManifest,
     img_dataset_dir: Path,
     labelme_version="6.0.0",
 ) -> dict:
     """
-    Writes shapes in a Regions2D object to the Labelme JSON format
+    Writes the regions of a Regions2D object into LabelMe JSON annotations.
 
-    For each image in the dataset:
-    -   Find all regions contained in that image (using bbox)
-    -   Convert real-world (time, depth) coordinates to pixel coordinates
-    -   Write shapes into JSON file
+    Each region is clipped to every image it overlaps in depth and time. The
+    part of a region outside an image is not written as a shape: it stays in
+    the CSV only. A region spanning several images gives one shape per image,
+    all sharing the same `region_id`.
 
-    Warning: Handle out of bounds points (depth > image edge)
-    Special case: regions that extend beyond a single image
-    --> For now not handled: simply print error and skip
+    Non-mapped CSV columns are passed on as extra keys of each shape.
+    Regions with no overlap with any image, or with invalid geometry, are
+    skipped with a printed reason.
+
+    Returns a dict mapping JSON filename to the LabelMe annotation dict.
     """
+    labelme_data: dict = {}
+    grids = load_image_grids(manifest, img_dataset_dir)
 
-    labelme_data = {}
-    parsed_ids = []
-    failed_ids = []
-
-    df: pd.DataFrame = pd.DataFrame(regions.data.copy())
-
-    # Convert bbox time columns from string to datetime64 (should be done by Echoregions ideally)
-    for bbox_col in ["region_bbox_left", "region_bbox_right"]:
-        if bbox_col in df.columns:
-            df[bbox_col] = pd.to_datetime(df[bbox_col], errors="coerce")
-
-    for img_meta in manifest.images:
-        time_coord, depth_coord = img_meta.load_coordinates(img_dataset_dir)
-
-        # Grab all regions contained within the image's bbox
-        contained_mask: pd.Series = (
-            (time_coord[0] <= df["region_bbox_left"])
-            & (df["region_bbox_right"] <= time_coord[-1])
-            & (depth_coord[0] <= df["region_bbox_top"])
-            & (df["region_bbox_bottom"] <= depth_coord[-1])
-        )
-        contained = df.loc[contained_mask]
-
-        # Continue if no regions is contained in image
-        if len(contained) == 0:
-            continue
-
-        # Create image annotation dict
-        img_annotations = {
+    for grid in grids:
+        json_filename = Path(grid.filename).stem + ".json"
+        labelme_data[json_filename] = {
             "version": labelme_version,
             "flags": {},
             "shapes": [],
-            "imagePath": str(img_dataset_dir / img_meta.filename),
+            "imagePath": str(img_dataset_dir / grid.filename),
             "imageData": None,
-            "imageHeight": img_meta.range_sample_end - img_meta.range_sample_start + 1,
-            "imageWidth": img_meta.ping_sample_end - img_meta.ping_sample_start + 1,
+            "imageHeight": grid.meta.range_sample_end - grid.meta.range_sample_start + 1,
+            "imageWidth": grid.meta.ping_sample_end - grid.meta.ping_sample_start + 1,
         }
-        json_filename = Path(img_meta.filename).stem + ".json"
-        labelme_data[json_filename] = img_annotations
 
-        for _, row in contained.iterrows():
-            try:
-                # Extract coordinate arrays from row
-                times = row["time"]
-                depths = row["depth"]
+    df: pd.DataFrame = regions if isinstance(regions, pd.DataFrame) else pd.DataFrame(regions.data.copy())
+    passthrough_cols = [c for c in df.columns if c not in MAPPED_COLUMNS]
+    parsed_ids = []
+    failed_ids = []
 
-                if not isinstance(times, np.ndarray) or not isinstance(depths, np.ndarray):
-                    raise TypeError(f"Expected time/depth arrays, got {type(times)}/{type(depths)}")
+    for _, row in df.iterrows():
+        region_id = row["region_id"]
+        try:
+            geom = row_geometry(row["time"], row["depth"])
+        except (ValueError, TypeError) as e:
+            print(f"Warning: region {region_id} skipped, invalid geometry ({e})")
+            failed_ids.append(region_id)
+            continue
 
-                region_creation_type = row.get("region_creation_type", None)
+        shape_type = "polygon"
+        if is_rectangle_row(row.get("shape_type"), row["time"], row["depth"]):
+            shape_type = "rectangle"
+        elif str(row.get("shape_type")) == "rectangle":
+            print(
+                f"Warning: region {region_id} has shape_type 'rectangle' but is not an axis-aligned box, imported as polygon"
+            )
+        specs = region_to_shapes(geom, grids, shape_type)
+        if not specs:
+            print(f"Warning: region {region_id} skipped, no overlap with any image (kept in CSV only)")
+            failed_ids.append(region_id)
+            continue
 
-                if region_creation_type is not None and int(region_creation_type) == 3:
-                    shape_type = "rectangle"
-                else:
-                    shape_type = "polygon"
+        for spec in specs:
+            shape = {
+                "label": label_of(row),
+                "points": spec.points,
+                "group_id": None if is_missing(row.get("group_id")) else int(row["group_id"]),
+                "description": "" if is_missing(row.get("description")) else str(row["description"]),
+                "shape_type": spec.shape_type,
+                "mask": None,
+                "flags": flags_to_dict(row.get("flags")),
+                "region_id": json_safe(region_id),
+            }
+            for col in passthrough_cols:
+                shape[col] = json_safe(row[col])
+            labelme_data[Path(spec.filename).stem + ".json"]["shapes"].append(shape)
 
-                trans_fn = shape_tranforms_registry[shape_type]
-                times, depths = trans_fn(times, depths)
+        parsed_ids.append(region_id)
 
-                points = manifest.real_coords_to_labelme_polygon(
-                    cache_dir=img_dataset_dir,
-                    filename=img_meta.filename,
-                    points_ping_axis_values=times,
-                    points_range_axis_values=depths,
-                )
+    # Only keep image annotations that contain shapes
+    labelme_data = {k: v for k, v in labelme_data.items() if v["shapes"]}
 
-                # Build shape metadata
-                shape = {
-                    "label": row.get("region_name", ".NONAME"),
-                    "points": points,
-                    "group_id": None if pd.isna(row.get("group_id")) else int(row.get("group_id")),
-                    "description": "" if pd.isna(row.get("description")) else row.get("description", ""),
-                    "shape_type": shape_type,
-                    "mask": None,
-                    "flags": {},
-                }
-
-                img_annotations["shapes"].append(shape)
-                parsed_ids.append(row["region_id"])
-
-            except (ValueError, TypeError) as e:
-                print(f"Failed to parse region {row['region_id']}: {e}")
-                failed_ids.append(row["region_id"])
-                continue
-
-    total = len(df)
-    print(f"Parsed {len(parsed_ids)}/{total} regions into Labelme shapes.")
+    print(f"Parsed {len(parsed_ids)}/{len(df)} regions into Labelme shapes.")
     if failed_ids:
         print(f"Failed: {failed_ids}")
 

@@ -37,32 +37,6 @@ class ImageMetadata:
         data = np.load(output_dir / f"{stem}_coords.npz")
         return data["ping_axis"], data["range_axis"]
 
-    def pixel_to_real_coords(
-        self,
-        output_dir: Path,
-        x_pixel: int | list[int] | npt.NDArray[np.integer],
-        y_pixel: int | list[int] | npt.NDArray[np.integer],
-    ) -> tuple[npt.NDArray, npt.NDArray]:
-        """Convert pixel coordinates to real-world (ping_axis, range_axis) coordinates"""
-
-        # Load real coordinates arrays
-        ping_axis_values, range_axis_values = self.load_coordinates(output_dir)
-        imax_ping, imax_range = len(ping_axis_values) - 1, len(range_axis_values) - 1
-
-        # Enforce numpy array type
-        x_pixel = np.array(x_pixel)
-        y_pixel = np.array(y_pixel)
-
-        # Round to int & change dtype
-        x_pixel = np.floor(x_pixel).astype(np.uint32)
-        y_pixel = np.floor(y_pixel).astype(np.uint32)
-
-        # Enforce image boundaries (LabelMe sometimes allow x = img.shape[1] for instance)
-        x_pixel = np.clip(x_pixel, 0, imax_ping)
-        y_pixel = np.clip(y_pixel, 0, imax_range)
-
-        return ping_axis_values[x_pixel], range_axis_values[y_pixel]
-
 
 @dataclass
 class ImagesDatasetManifest:
@@ -97,69 +71,3 @@ class ImagesDatasetManifest:
             if img_meta.filename == filename:
                 return img_meta
         raise FileNotFoundError(f"No image metada corresponds to filename: {filename}")
-
-    def pixel_to_real_coords(
-        self,
-        cache_dir: Path,
-        filename: str,
-        x_pixel: int | list[int] | npt.NDArray[np.integer],
-        y_pixel: int | list[int] | npt.NDArray[np.integer],
-    ) -> tuple[npt.NDArray, npt.NDArray]:
-        """
-        Convert pixel coordinates to real-worlds coordinates for a given image
-        """
-        img_meta = self.get_image_metadata(filename)
-        if img_meta is None:
-            raise ValueError(f"Image {filename} not found in manifest")
-
-        return img_meta.pixel_to_real_coords(cache_dir, x_pixel, y_pixel)
-
-    def labelme_polygon_to_real_coords(
-        self,
-        cache_dir: Path,
-        filename: str,
-        points: list[int],
-    ) -> tuple[npt.NDArray, npt.NDArray]:
-        """
-        Convert a Labelme polygon annotation to real-world coordinates
-        """
-        points_array: npt.NDArray[np.integer] = np.array(points)
-
-        return self.pixel_to_real_coords(
-            cache_dir,
-            filename,
-            x_pixel=points_array[:, 0],
-            y_pixel=points_array[:, 1],
-        )
-
-    def real_coords_to_labelme_polygon(
-        self,
-        cache_dir: Path,
-        filename: str,
-        points_ping_axis_values: npt.NDArray[np.floating | np.datetime64],
-        points_range_axis_values: npt.NDArray[np.floating],
-    ) -> list[list[int]]:
-        """
-        Convert real-world coordinates to a Labelme polygon.
-        No-interpolation: floor to pixel.
-        """
-
-        img_meta = self.get_image_metadata(filename)
-        ping_axis_values, range_axis_values = img_meta.load_coordinates(cache_dir)
-
-        # Convert real-world coordinates to pixel indices
-        x_pixels = np.searchsorted(ping_axis_values, points_ping_axis_values)
-        y_pixels = np.searchsorted(range_axis_values, points_range_axis_values)
-
-        # Clamp to image bounds to catch any floating point issues
-        x_pixels = np.clip(x_pixels, 0, len(ping_axis_values) - 1)
-        y_pixels = np.clip(y_pixels, 0, len(range_axis_values) - 1)
-
-        # Floor and set dtype to int
-        x_pixels = np.floor(x_pixels).astype(np.int32)
-        x_pixels = np.floor(x_pixels).astype(np.int32)
-
-        # Two arrays -> list of lists
-        points = [[x.item(), y.item()] for x, y in zip(x_pixels, y_pixels)]
-
-        return points

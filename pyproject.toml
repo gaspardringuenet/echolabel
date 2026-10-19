@@ -19,6 +19,7 @@ dependencies = [
     # data wrangling
     "numpy>=2,<3",
     "pandas>=2.3.3,<3",
+    "shapely>=2.0", # geometry clipping/merging in regions2d_extension
     # images generation
     "matplotlib>=3.10.8,<4",
     "Pillow>=12.0.0,<13",
