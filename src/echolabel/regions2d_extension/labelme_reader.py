@@ -36,10 +36,6 @@ CUSTOM_COLUMNS = [
     "region_bbox_right",
     "region_bbox_top",
     "region_bbox_bottom",
-    "echoview_version",
-    "region_structure_version",
-    "region_type",
-    "region_notes",
     "flags",
     "group_id",
     "description",
@@ -99,7 +95,7 @@ def parse_echolabel(
         if col not in data.columns:
             data[col] = np.nan
     extra = [c for c in data.columns if c not in columns]
-    data = data[columns + extra]
+    data = data.loc[:, columns + extra]
 
     # Rows from original CSV without a shape_type value are polygons
     data["shape_type"] = data["shape_type"].where(data["shape_type"].notna(), "polygon")
