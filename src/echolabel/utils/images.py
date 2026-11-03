@@ -5,6 +5,8 @@ from matplotlib import colors
 from matplotlib.typing import ColorType
 from PIL import Image
 
+from .echograms import OKLab
+
 
 def array2image(
     a: npt.NDArray[np.float32],
@@ -25,7 +27,8 @@ def array2image(
     vmax : float, optional
         Maximal value for color mapping, by default None
     echogram_cmap : str, optional
-        Colormap for the image. 'RGB' is the only colormap accepted for (H, W, 3) array.
+        Colormap for the image. 'RGB' and 'OKLab' are the only colormaps accepted for (H, W, 3)
+        arrays (channels: reference, f1, f2).
         For (H, W) arrays, colormap argument must be a matplotlib colormap name, by default 'RGB'
     bg_color : ColorType, optional
         Background color to fill where data is missing, by default "grey"
@@ -43,15 +46,30 @@ def array2image(
     """
 
     # Handle missing vmin, vmax params
-    min_value: float = vmin or a.min()
-    max_value: float = vmax or a.min()
+    min_value: float = np.nanmin(a) if vmin is None else vmin
+    max_value: float = np.nanmax(a) if vmax is None else vmax
+
+    # Get rgba vector for background color
+    bg_rgb: npt.NDArray = colors.to_rgba_array(bg_color)[0]
+
+    # Perceptual OKLab encoding of 3-channel data (works on raw Sv values, in dB)
+    if (len(a.shape) == 3) and (a.shape[2] == 3) and (echogram_cmap == "OKLab"):
+        enc = OKLab(
+            vmin=min_value,
+            vmax=max_value,
+            sat_max=np.sqrt(2 * (20**2)),
+            l_range=(0.3, 0.75),
+            c_max=0.25,
+            theta=0.85 * np.pi,
+        )
+        rgb = enc(a)
+        all_channels_na = np.all(np.isnan(a), axis=-1, keepdims=True)
+        rgb = np.where(all_channels_na, bg_rgb[:3], rgb)
+        return Image.fromarray((rgb * 255).round().astype(np.uint8))
 
     # Convert array values to (0, 1) range (use vmin, vmax and clip)
     a = (a - min_value) / (max_value - min_value)
     a = np.clip(a, 0, 1)
-
-    # Get rgba vector for background color
-    bg_rgb: npt.NDArray = colors.to_rgba_array(bg_color)[0]
 
     # If array as 3 channels, convert to RGB echogram image
     if (len(a.shape) == 3) and (a.shape[2] == 3) and (echogram_cmap == "RGB"):

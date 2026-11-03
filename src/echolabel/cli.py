@@ -94,8 +94,8 @@ def demo(output_dir):
     "--cmap",
     type=str,
     help="""Colormap. When mapping a single frequency, any matplotlib
-    cmap may be used. An additional'RGB' cmap will produce a tri-frequency
-    composite echogram. By default 'viridis'.""",
+    cmap may be used. Additional 'RGB' and 'OKLab' cmaps produce a
+    tri-frequency composite echogram (OKLab: max Sv sets lightness, differences set hue). By default 'viridis'.""",
 )
 @click.option(
     "--reuse-images/--no-reuse-images",
