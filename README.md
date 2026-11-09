@@ -1,9 +1,10 @@
-# `echolabel` - Interactive Echogram Annotation
+# Echolabel - Interactive Echogram Annotation
 
 > A [Labelme](https://github.com/wkentaro/labelme) wrapper enabling fast echogram annotation with CSV outputs compatible
 > with [Echoregions](https://github.com/echostack-org/echoregions/).
 
 ![](https://raw.githubusercontent.com/gaspardringuenet/echolabel/main/images/gui_screenshot.png)
+*LabelMe GUI openned on RGB composite echogram image.*
 
 ## Installation
 
@@ -44,7 +45,7 @@ The workflow:
 2. You annotate the regions in LabelMe.
 3. Echolabel reads the JSON files back and writes the CSV.
 
-## Colormaps and configuration
+## Colormaps
 
 The default single-frequency colormap is `viridis`; select another Matplotlib colormap with `--cmap`.
 For a three-frequency composite, select three frequencies **and** explicitly choose a composite:
@@ -57,11 +58,22 @@ echolabel process -s data.zarr -o regions.csv -f 38000 -f 70000 -f 120000 --cmap
 Frequency order matters. `RGB` maps the three frequencies to red, green and blue.
 The rotated `OKLab` encoding uses the maximum Sv for lightness and the differences
 between the second and third frequencies and the first (reference) frequency for
-hue and chroma. Its rotation is configurable.
+hue and chroma.
+
+> The motivation for the `OKLab` colormap comes from perceptual limitations of the `RGB`
+> representation, which has been used by deep sea ecologist. The goal is to get:
+> 
+> 1. Perceptually uniform lightness mapped to max(Sv) & independent of ΔSv → L ~ max(Sv) (clipped & rescaled)
+> 2. Approx. uniform changes in color when moving in the ΔSv plane → a, b ~ ΔSv(f1), ΔSv(f2)
+> 3. Colors roughly matching the `RGB` mode → (a, b) plane is rotated
+>
+> For more info on the OKLab color space, check [https://bottosson.github.io/posts/oklab/](https://bottosson.github.io/posts/oklab/).
 
 ![](https://raw.githubusercontent.com/gaspardringuenet/echolabel/main/images/cmap_RGB.svg)
+![](https://raw.githubusercontent.com/gaspardringuenet/echolabel/main/images/cmap_OKLab.svg)
+*Visualization of multifrequency composite echogram colormaps available in Echolabel.*
 
-![OKLab colormap with -f 38000 -f 70000 -f 120000](https://raw.githubusercontent.com/gaspardringuenet/echolabel/main/images/cmap_OKLab.svg)
+## Configuration
 
 Run `echolabel config` to create a user configuration file, then edit its YAML.
 For example, the OKLab defaults are:
