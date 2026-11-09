@@ -134,7 +134,7 @@ datavars:
     fvar_unit_scale: 1000 # (Optional) Frequency unit conversion factor to Hz (1000 if coord is in kHz). Defaults to 1.
 ```
 
-In adsition to the configuration settings, Echolabel will try the Echopype convention
+In addition to the configuration settings, Echolabel will try the Echopype convention
 ("Sv", "ping_time", "depth", "channel", "frequency_nominal", no scaling) and the
 IMOS convention ("Sv", "time", "depth", "channel", None, 1000).
 
