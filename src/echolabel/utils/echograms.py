@@ -1,3 +1,10 @@
+"""
+This module contains multifrequency composite echogram encodings (RGB, OKLab) used as colormaps during the PNG generation.
+
+I also contains QuadMesh plotting functions, which are not currently used by Echolabel. A future feature could be outputing QuadMesh's instead of
+PNG's with one sample = one pixel.
+"""
+
 from dataclasses import dataclass
 from typing import Protocol
 
