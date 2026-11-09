@@ -7,16 +7,49 @@ Note: currently some confusion between naming conventions:
 * Real-world naming : 'ping_time_*', 'range_*'
 """
 
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from functools import partial
 from pathlib import Path
 
+import numpy as np
 import xarray as xr
 from tqdm import tqdm
 
+from ..config.config import resolve_oklab_settings
+from ..utils.echograms import RGB, Encoding, OKLab
 from ..utils.images import array2image
 from .dataloader import normalize_vars, open_dataset  # open_mask
 from .manifest import ImageMetadata, ImagesDatasetManifest
+
+
+def image_cache_key(
+    source: str | Path,
+    datavars_config: dict,
+    freqs_hz: float | list[float] | None = None,
+    frame_width: int = 1000,
+    range_samples_slice: slice = slice(0, None),
+    bin_mask: str | Path | None = None,
+    **viz_params,
+) -> dict:
+    """Describe the source and settings used to build the cached images."""
+    path = Path(source).resolve()
+    stat = path.stat()
+    if isinstance(freqs_hz, (int, float)):
+        freqs_hz = [float(freqs_hz)]
+    if freqs_hz == []:
+        freqs_hz = None
+    return {
+        "source": str(path),
+        "source_mtime_ns": stat.st_mtime_ns,
+        "source_size": stat.st_size,
+        "datavars": datavars_config,
+        "freqs_hz": freqs_hz,
+        "frame_width": frame_width,
+        "range_samples_slice": [range_samples_slice.start, range_samples_slice.stop, range_samples_slice.step],
+        "bin_mask": str(bin_mask) if bin_mask is not None else None,
+        "viz_params": viz_params,
+    }
 
 
 def build_images_dataset(
@@ -30,6 +63,23 @@ def build_images_dataset(
     **viz_params,
 ) -> ImagesDatasetManifest:
     """Builds an echogram images dataset with metadata"""
+
+    if viz_params.get("echogram_cmap") == "OKLab":
+        viz_params["oklab"] = resolve_oklab_settings(viz_params.get("oklab"))
+
+    if frame_width <= 0:
+        raise ValueError("frame_width must be positive")
+    if range_samples_slice.step is not None and range_samples_slice.step <= 0:
+        raise ValueError("range_samples_slice step must be positive")
+    if isinstance(freqs_hz, (int, float)):
+        freqs_hz = [float(freqs_hz)]
+    if freqs_hz == []:
+        freqs_hz = None
+    if freqs_hz is not None and len(freqs_hz) not in (1, 3):
+        raise ValueError("Select one or three frequencies")
+    vmin, vmax = viz_params.get("vmin"), viz_params.get("vmax")
+    if vmin is not None and vmax is not None and (not np.isfinite(vmin) or not np.isfinite(vmax) or vmin >= vmax):
+        raise ValueError("vmin and vmax must be finite and vmin must be less than vmax")
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -45,9 +95,25 @@ def build_images_dataset(
     images_metadata = []
     t_axis_coord = ds_acou.tvar.values
     z_axis_coord = ds_acou.zvar.values
+    selected_depths = z_axis_coord[range_samples_slice]
+    if len(t_axis_coord) == 0 or len(selected_depths) == 0:
+        raise ValueError("The selected time and depth axes must not be empty")
+    if not np.issubdtype(t_axis_coord.dtype, np.datetime64) or np.any(np.isnat(t_axis_coord)):
+        raise ValueError("The time axis must contain valid datetime values")
+    if np.any(np.diff(t_axis_coord) <= np.timedelta64(0, "ns")):
+        raise ValueError("The time axis must be strictly increasing")
+    if not np.issubdtype(selected_depths.dtype, np.number):
+        raise ValueError("The selected depth axis must be numeric")
+    if not np.all(np.isfinite(selected_depths)) or np.any(np.diff(selected_depths) <= 0):
+        raise ValueError("The selected depth axis must be finite and strictly increasing")
 
+    previous_end = 0
     for i, t_start in tqdm(enumerate(range(0, len(t_axis_coord), frame_width)), desc="Building images"):
+        if t_start < previous_end:
+            continue
         t_end = min(t_start + frame_width, len(t_axis_coord))
+        if frame_width > 1 and len(t_axis_coord) - t_end == 1:
+            t_end += 1
 
         # Extract subset
         if freqs_hz is None:  # not provided: use the first channel
@@ -58,14 +124,11 @@ def build_images_dataset(
             ).acouvar
 
         else:
-            if isinstance(freqs_hz, float):
-                freqs_hz = [freqs_hz]
             da_sub: xr.DataArray = (
-                ds_acou.isel(tvar=slice(t_start, t_end), zvar=range_samples_slice)
-                .sel(fvar=freqs_hz)
-                .squeeze()  # drop channel if single frequency was selected
-                .acouvar
+                ds_acou.isel(tvar=slice(t_start, t_end), zvar=range_samples_slice).sel(fvar=freqs_hz).acouvar
             )
+            if da_sub.sizes["fvar"] == 1:
+                da_sub = da_sub.squeeze("fvar", drop=True)
 
         # TODO Extract binary mask subset (if it exists)
         # if bin_mask:
@@ -92,6 +155,7 @@ def build_images_dataset(
         )
 
         images_metadata.append(img_meta)
+        previous_end = t_end
 
     # Save manifest file
     manifest = ImagesDatasetManifest(
@@ -101,6 +165,9 @@ def build_images_dataset(
         freqs_hz=freqs_hz if (freqs_hz is not None) else "first",
         viz_params=viz_params,
         images=images_metadata,
+        cache_key=image_cache_key(
+            source, datavars_config, freqs_hz, frame_width, range_samples_slice, bin_mask, **viz_params
+        ),
     )
     manifest.save(output_dir)
 
@@ -115,6 +182,7 @@ def save_echogram_image(
     echogram_cmap: str,
     bg_color: str,
     da_mask: xr.DataArray | None = None,
+    oklab: Mapping[str, object] | None = None,
 ):
     """Computes an echogram image from acoustic data and saves it as png"""
 
@@ -124,9 +192,23 @@ def save_echogram_image(
     except ValueError:
         array = da.transpose("zvar", "tvar").values
 
-    # Convert array to PIL image by applying cmap and bg_color
+    enc: Encoding | None = None
+    if echogram_cmap == "RGB":
+        enc = RGB(vmin=vmin, vmax=vmax)
+    elif echogram_cmap == "OKLab":
+        settings = resolve_oklab_settings(oklab)
+        enc = OKLab(
+            vmin=vmin,
+            vmax=vmax,
+            sat_max=settings["sat_max"],
+            l_range=(settings["l_range"][0], settings["l_range"][1]),
+            c_max=settings["c_max"],
+            theta=settings["theta"],
+        )
+
+    # Convert array to PIL image by applying the encoder or scalar colormap.
     # TODO overlay mask
-    img = array2image(array, vmin, vmax, echogram_cmap, bg_color)
+    img = array2image(array, enc=enc, vmin=vmin, vmax=vmax, echogram_cmap=echogram_cmap, bg_color=bg_color)
 
     # Save
     img.save(outfile)

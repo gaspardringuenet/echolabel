@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ["3.12", "3.13"]
+    runs-on: ${{ matrix.os }}
+    env:
+      UV_PYTHON: ${{ matrix.python }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Install dependencies
+        run: uv sync --locked --python "${{ matrix.python }}" --group test --group lint
+      - name: Lint
+        run: uv run --locked ruff check src test
+      - name: Test
+        run: uv run --locked pytest -q
+      - name: Build distributions
+        run: uv build
+      - name: Smoke test wheel and source installs
+        shell: bash
+        run: |
+          uv venv .smoke-wheel --python "${{ matrix.python }}"
+          uv pip install --python .smoke-wheel dist/*.whl
+          uv run --no-project --python .smoke-wheel python -m echolabel.cli --help
+          uv venv .smoke-sdist --python "${{ matrix.python }}"
+          uv pip install --python .smoke-sdist dist/*.tar.gz
+          uv run --no-project --python .smoke-sdist python -m echolabel.cli --help

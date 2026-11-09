@@ -34,8 +34,8 @@ class ImageMetadata:
     def load_coordinates(self, output_dir: Path) -> tuple[npt.NDArray, npt.NDArray]:
         """Load coordinate arrays"""
         stem = Path(self.filename).stem
-        data = np.load(output_dir / f"{stem}_coords.npz")
-        return data["ping_axis"], data["range_axis"]
+        with np.load(output_dir / f"{stem}_coords.npz") as data:
+            return data["ping_axis"], data["range_axis"]
 
 
 @dataclass
@@ -48,6 +48,7 @@ class ImagesDatasetManifest:
     freqs_hz: float | list[float] | Literal["first"]
     viz_params: dict
     images: list[ImageMetadata]
+    cache_key: dict | None = None
 
     def save(self, cache_dir: Path):
         """Save manifest to JSON"""

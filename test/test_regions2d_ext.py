@@ -61,6 +61,8 @@ def test_regions2d_to_labelme(
 
     annotation = labelme_data[json_fname]
     assert annotation["version"] == "6.0.0"
+    assert annotation["imageWidth"] == true_annotation["imageWidth"]
+    assert annotation["imageHeight"] == true_annotation["imageHeight"]
 
     shapes = annotation["shapes"]
     true_shapes = true_annotation["shapes"]

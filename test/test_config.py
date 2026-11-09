@@ -1,3 +1,6 @@
+import pytest
+import yaml
+
 from echolabel.config.config import Config, get_config_dir, init_user_config
 
 
@@ -38,6 +41,55 @@ def test_config_to_file(tmp_path, default_config):
     assert config_file.exists()
     loaded = Config.from_file(config_file)
     assert loaded.frame_width == default_config.frame_width
+
+
+def test_oklab_config_defaults_and_partial_override(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(yaml.safe_dump({"oklab": {"theta": 1.0}}))
+    config = Config.from_file(config_file)
+    assert config.oklab == {
+        "sat_max": 28.3,
+        "l_range": [0.3, 0.75],
+        "c_max": 0.25,
+        "theta": 1.0,
+    }
+
+    config.to_file(config_file)
+    assert Config.from_file(config_file).oklab == config.oklab
+    assert Config.from_defaults().oklab == {
+        "sat_max": 28.3,
+        "l_range": [0.3, 0.75],
+        "c_max": 0.25,
+        "theta": 2.67,
+    }
+    config_file.write_text("vmin: -80\n")
+    assert Config.from_file(config_file).oklab == Config.from_defaults().oklab
+
+
+@pytest.mark.parametrize(
+    "settings",
+    [
+        {"sat_max": 0},
+        {"sat_max": float("inf")},
+        {"c_max": -1},
+        {"theta": float("nan")},
+        {"l_range": [0.8, 0.2]},
+        {"l_range": [-0.1, 0.5]},
+        {"l_range": [0.5]},
+        {"theta": "bad"},
+        {"unknown": 1},
+    ],
+)
+def test_invalid_oklab_config(settings):
+    with pytest.raises(ValueError, match="oklab|OKLab"):
+        Config.from_defaults().update({"oklab": settings})
+
+
+def test_oklab_config_must_be_a_mapping(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("oklab: invalid\n")
+    with pytest.raises(ValueError, match="oklab must be a mapping"):
+        Config.from_file(config_file)
 
 
 def test_config_load_fallback(tmp_path, monkeypatch):

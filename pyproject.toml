@@ -7,6 +7,8 @@ name = "echolabel"
 version = "0.1.0"
 description = "Interactive echogram labelling tools"
 readme = "README.md"
+license = "GPL-3.0-only"
+license-files = ["LICENSE"]
 authors = [{name = "Gaspard Ringuenet", email = "gaspard.ringuenet@proton.me"}]
 requires-python = ">=3.12"
 dependencies = [
@@ -30,12 +32,15 @@ dependencies = [
     "tqdm>=4.68.0,<5",
     # cache management
     "platformdirs>=4.9.4,<5",
+    "PyYAML>=6,<7",
+    "requests>=2.34.0,<3",
 ]
 
-[dependency-groups]
-# downloading data for demo mode
-demo = ["requests>=2.34.0,<3"]
+[project.urls]
+Repository = "https://github.com/gaspardringuenet/echolabel"
+Issues = "https://github.com/gaspardringuenet/echolabel/issues"
 
+[dependency-groups]
 # developper mode
 dev = [
   {include-group = "lint"},

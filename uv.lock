@@ -444,15 +444,15 @@ dependencies = [
     { name = "pandas" },
     { name = "pillow" },
     { name = "platformdirs" },
+    { name = "pyyaml" },
+    { name = "requests" },
+    { name = "shapely" },
     { name = "tqdm" },
     { name = "xarray" },
     { name = "zarr" },
 ]
 
 [package.dev-dependencies]
-demo = [
-    { name = "requests" },
-]
 dev = [
     { name = "pytest" },
     { name = "pytest-cov" },
@@ -483,13 +483,15 @@ requires-dist = [
     { name = "pandas", specifier = ">=2.3.3,<3" },
     { name = "pillow", specifier = ">=12.0.0,<13" },
     { name = "platformdirs", specifier = ">=4.9.4,<5" },
+    { name = "pyyaml", specifier = ">=6,<7" },
+    { name = "requests", specifier = ">=2.34.0,<3" },
+    { name = "shapely", specifier = ">=2.0" },
     { name = "tqdm", specifier = ">=4.68.0,<5" },
     { name = "xarray", specifier = ">=2025.6.1,<2026" },
     { name = "zarr", specifier = ">=2.18.7,<3" },
 ]
 
 [package.metadata.requires-dev]
-demo = [{ name = "requests", specifier = ">=2.34.0,<3" }]
 dev = [
     { name = "pytest", specifier = ">=9.0.2" },
     { name = "pytest-cov", specifier = ">=7.1.0" },

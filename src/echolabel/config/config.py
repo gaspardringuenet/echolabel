@@ -1,8 +1,11 @@
 """Configuration management for Echolabel"""
 
+import math
 import os
-from dataclasses import asdict, dataclass
+from collections.abc import Mapping
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
+from typing import TypedDict
 
 import yaml
 
@@ -10,6 +13,47 @@ try:
     from importlib.resources import files
 except ImportError:
     from importlib_resources import files  # type: ignore
+
+
+class OKLabSettings(TypedDict):
+    sat_max: float
+    l_range: list[float]
+    c_max: float
+    theta: float
+
+
+def resolve_oklab_settings(settings: Mapping[str, object] | None = None) -> OKLabSettings:
+    """Merge and validate the application defaults for the OKLab encoding."""
+    config_file = files("echolabel").joinpath("config/config.default.yaml")
+    with config_file.open("r") as f:
+        defaults: dict[str, object] = yaml.safe_load(f)["oklab"]
+    if settings is not None:
+        if not isinstance(settings, Mapping):
+            raise ValueError("oklab must be a mapping")
+        unknown = set(settings) - defaults.keys()
+        if unknown:
+            raise ValueError(f"Unknown OKLab settings: {sorted(unknown)}")
+        defaults.update(settings)
+
+    def number(value: object, name: str) -> float:
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+            raise ValueError(f"oklab.{name} must be a finite number")
+        return float(value)
+
+    sat_max = number(defaults["sat_max"], "sat_max")
+    c_max = number(defaults["c_max"], "c_max")
+    theta = number(defaults["theta"], "theta")
+    l_range = defaults["l_range"]
+    if not isinstance(l_range, (list, tuple)) or len(l_range) != 2:
+        raise ValueError("oklab.l_range must contain two lightness values")
+    lightness = [number(value, "l_range") for value in l_range]
+    if sat_max <= 0:
+        raise ValueError("oklab.sat_max must be positive")
+    if c_max < 0:
+        raise ValueError("oklab.c_max must be nonnegative")
+    if not 0 <= lightness[0] < lightness[1] <= 1:
+        raise ValueError("oklab.l_range must be increasing within [0, 1]")
+    return {"sat_max": sat_max, "l_range": lightness, "c_max": c_max, "theta": theta}
 
 
 def get_config_dir() -> Path:
@@ -57,11 +101,19 @@ class Config:
     echogram_cmap: str
     bg_color: str
     reuse_images: bool
+    oklab: OKLabSettings = field(default_factory=resolve_oklab_settings)
+
+    def __post_init__(self) -> None:
+        self.oklab = resolve_oklab_settings(self.oklab)
 
     def update(self, overrides: dict) -> None:
         """Update configuration with overrides dictionary"""
         for key, value in overrides.items():
-            if hasattr(self, key):
+            if key == "oklab":
+                if not isinstance(value, Mapping):
+                    raise ValueError("oklab must be a mapping")
+                self.oklab = resolve_oklab_settings({**self.oklab, **value})
+            elif hasattr(self, key):
                 setattr(self, key, value)
 
     @classmethod

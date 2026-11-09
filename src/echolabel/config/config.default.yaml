@@ -21,6 +21,11 @@ vmin: -90.0
 vmax: -50.0
 echogram_cmap: viridis # matplotlib cmap, or RGB / OKLab for 3 frequencies
 bg_color: grey
+oklab:
+    sat_max: 28.3 # spectral difference [dB] at maximum chroma
+    l_range: [0.3, 0.75] # lightness at vmin and vmax
+    c_max: 0.25 # maximum chroma before gamut adjustment
+    theta: 2.67 # rotation in ΔMVBS plane [radians] (153°, hue is similar to RGB)
 
 # whether to run whith cached images dataset
 reuse_images: false

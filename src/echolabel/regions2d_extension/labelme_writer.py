@@ -46,10 +46,10 @@ def regions2d_to_labelme(
             "version": labelme_version,
             "flags": {},
             "shapes": [],
-            "imagePath": str(img_dataset_dir / grid.filename),
+            "imagePath": str((img_dataset_dir / grid.filename).resolve()),
             "imageData": None,
-            "imageHeight": grid.meta.range_sample_end - grid.meta.range_sample_start + 1,
-            "imageWidth": grid.meta.ping_sample_end - grid.meta.ping_sample_start + 1,
+            "imageHeight": len(grid.depths),
+            "imageWidth": len(grid.times),
         }
 
     df: pd.DataFrame = regions if isinstance(regions, pd.DataFrame) else pd.DataFrame(regions.data.copy())

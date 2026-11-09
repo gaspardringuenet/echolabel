@@ -5,14 +5,15 @@ from matplotlib import colors
 from matplotlib.typing import ColorType
 from PIL import Image
 
-from .echograms import OKLab
+from .echograms import Encoding
 
 
 def array2image(
     a: npt.NDArray[np.float32],
+    enc: Encoding | None = None,
     vmin: float | None = None,
     vmax: float | None = None,
-    echogram_cmap: str = "RGB",
+    echogram_cmap: str = "viridis",
     bg_color: ColorType = "grey",
 ) -> Image.Image:
     """
@@ -22,14 +23,12 @@ def array2image(
     ----------
     a : np.ndarray
         Array
-    vmin : float, optional
-        Minimal value for color mapping, by default None
-    vmax : float, optional
-        Maximal value for color mapping, by default None
+    enc : Encoding, optional
+        Encoder for three-channel data; required for arrays of shape (H, W, 3).
+    vmin, vmax : float, optional
+        Bounds for single-channel color mapping. Three-channel bounds belong to enc.
     echogram_cmap : str, optional
-        Colormap for the image. 'RGB' and 'OKLab' are the only colormaps accepted for (H, W, 3)
-        arrays (channels: reference, f1, f2).
-        For (H, W) arrays, colormap argument must be a matplotlib colormap name, by default 'RGB'
+        Matplotlib colormap for single-channel arrays, by default 'viridis'.
     bg_color : ColorType, optional
         Background color to fill where data is missing, by default "grey"
 
@@ -41,52 +40,21 @@ def array2image(
     Raises
     ------
     ValueError
-        When the number of channels is neither 0 nor 3, or when it doesn't correspond
-        to the provided colormap argument.
+        When the array shape does not match the provided encoder.
     """
-
-    # Handle missing vmin, vmax params
-    min_value: float = np.nanmin(a) if vmin is None else vmin
-    max_value: float = np.nanmax(a) if vmax is None else vmax
-
-    # Get rgba vector for background color
     bg_rgb: npt.NDArray = colors.to_rgba_array(bg_color)[0]
 
-    # Perceptual OKLab encoding of 3-channel data (works on raw Sv values, in dB)
-    if (len(a.shape) == 3) and (a.shape[2] == 3) and (echogram_cmap == "OKLab"):
-        enc = OKLab(
-            vmin=min_value,
-            vmax=max_value,
-            sat_max=np.sqrt(2 * (20**2)),
-            l_range=(0.3, 0.75),
-            c_max=0.25,
-            theta=0.85 * np.pi,
-        )
+    if a.ndim == 3 and a.shape[2] == 3 and enc is not None:
         rgb = enc(a)
         all_channels_na = np.all(np.isnan(a), axis=-1, keepdims=True)
         rgb = np.where(all_channels_na, bg_rgb[:3], rgb)
         return Image.fromarray((rgb * 255).round().astype(np.uint8))
 
-    # Convert array values to (0, 1) range (use vmin, vmax and clip)
-    a = (a - min_value) / (max_value - min_value)
-    a = np.clip(a, 0, 1)
+    if a.ndim == 2 and enc is None:
+        min_value: float = np.nanmin(a) if vmin is None else vmin  # type: ignore
+        max_value: float = np.nanmax(a) if vmax is None else vmax  # type: ignore
+        a = np.clip((a - min_value) / (max_value - min_value), 0, 1)
 
-    # If array as 3 channels, convert to RGB echogram image
-    if (len(a.shape) == 3) and (a.shape[2] == 3) and (echogram_cmap == "RGB"):
-        # Where all channels are NA --> apply bg_color
-        all_channels_na = np.all(np.isnan(a), axis=-1, keepdims=True)
-
-        # Disable channel when it is NA (data still displayed as long as one channel is active)
-        a = np.nan_to_num(a, nan=0)
-
-        # But show as bg_color where all channels are NA
-        a = np.where(all_channels_na, np.ones_like(a) * bg_rgb[:3], a)
-
-        # Convert to image
-        img = Image.fromarray((a * 255).astype(np.uint8))
-
-    # If array has a single channel - (depth, ping_time) shape - apply Matplotlib cmap
-    elif (len(a.shape) == 2) and (echogram_cmap != "RGB"):
         # Get cmap object
         cmap = plt.get_cmap(echogram_cmap)
 
@@ -103,6 +71,6 @@ def array2image(
         img = Image.fromarray(rgb_array)
 
     else:
-        raise ValueError(f"Array is of shape {a.shape}, which doesn't match the cmap '{echogram_cmap}'.")
+        raise ValueError(f"Array shape {a.shape} does not match the provided encoder.")
 
     return img
