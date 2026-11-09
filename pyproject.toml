@@ -63,6 +63,9 @@ docs = [
 [project.scripts]
 echolabel = "echolabel.cli:cli"
 
+[tool.uv]
+required-environments = ["sys_platform == 'win32' and platform_machine == 'AMD64'"]
+
 [tool.ruff]
 line-length = 120
 

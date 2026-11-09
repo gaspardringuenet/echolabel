@@ -3,7 +3,7 @@
 > A [Labelme](https://github.com/wkentaro/labelme) wrapper enabling fast echogram annotation with CSV outputs compatible
 > with [Echoregions](https://github.com/echostack-org/echoregions/).
 
-![](https://raw.githubusercontent.com/gaspardringuenet/echolabel/main/image.png)
+![](https://raw.githubusercontent.com/gaspardringuenet/echolabel/main/gui-screenshot.png)
 
 ## Installation
 

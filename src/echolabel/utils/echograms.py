@@ -198,9 +198,14 @@ def plot_colormap(
     ax: Axes | None = None,
     samples: np.ndarray | None = None,
     paths_color: ColorType = "0.5",
+    ylabel: str | None = None,
+    xlabel: str | None = None,
 ):
 
     ax = ax or plt.gca()
+
+    xlabel_ = r"$\Delta \text{MVBS}_{f_1 - f_{ref}}$ [dB]" if xlabel is None else xlabel
+    ylabel_ = r"$\Delta \text{MVBS}_{f_2 - f_{ref}}$ [dB]" if ylabel is None else ylabel
 
     linekwargs = {
         "linestyle": "dashed",
@@ -215,8 +220,8 @@ def plot_colormap(
     ax.axvline(0, **linekwargs)
     ax.axhline(0, **linekwargs)
     ax.axline((0, 0), slope=1, **linekwargs)
-    ax.set_xlabel(r"$\Delta \text{MVBS}_{70 - 38 \text{ kHz}}$ [dB]")
-    ax.set_ylabel(r"$\Delta \text{MVBS}_{120 - 38 \text{ kHz}}$ [dB]")
+    ax.set_xlabel(xlabel_)
+    ax.set_ylabel(ylabel_)
     ax.set_title(rf"$\max Sv = {max_Sv}$ dB")
     ax.set_xlim(-lim, lim)
     ax.set_ylim(-lim, lim)
