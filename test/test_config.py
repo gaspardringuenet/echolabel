@@ -1,6 +1,10 @@
+from pathlib import Path
+from types import SimpleNamespace
+
 import pytest
 import yaml
 
+import echolabel.config.config as config_module
 from echolabel.config.config import Config, get_config_dir, init_user_config
 
 
@@ -107,11 +111,18 @@ def test_config_load_fallback(tmp_path, monkeypatch):
 
 def test_get_config_dir_posix(monkeypatch):
     """Test config directory on POSIX systems"""
-    monkeypatch.setattr("os.name", "posix")
-    monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
+    monkeypatch.setattr(config_module, "os", SimpleNamespace(name="posix", environ={}))
+    assert get_config_dir() == Path.home() / ".config" / "echolabel"
 
-    config_dir = get_config_dir()
-    assert ".config/echolabel" in str(config_dir)
+
+def test_get_config_dir_posix_xdg(monkeypatch, tmp_path):
+    monkeypatch.setattr(config_module, "os", SimpleNamespace(name="posix", environ={"XDG_CONFIG_HOME": str(tmp_path)}))
+    assert get_config_dir() == tmp_path / "echolabel"
+
+
+def test_get_config_dir_windows(monkeypatch, tmp_path):
+    monkeypatch.setattr(config_module, "os", SimpleNamespace(name="nt", environ={"APPDATA": str(tmp_path)}))
+    assert get_config_dir() == tmp_path / "echolabel"
 
 
 def test_init_user_config(tmp_path, monkeypatch):
