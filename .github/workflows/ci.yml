@@ -31,6 +31,8 @@ jobs:
           uv venv .smoke-wheel --python "${{ matrix.python }}"
           uv pip install --python .smoke-wheel dist/*.whl
           uv run --no-project --python .smoke-wheel python -m echolabel.cli --help
+          uv run --no-project --python .smoke-wheel python -m labelme --help
           uv venv .smoke-sdist --python "${{ matrix.python }}"
           uv pip install --python .smoke-sdist dist/*.tar.gz
           uv run --no-project --python .smoke-sdist python -m echolabel.cli --help
+          uv run --no-project --python .smoke-sdist python -m labelme --help
