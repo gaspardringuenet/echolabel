@@ -71,7 +71,9 @@ hue and chroma.
 
 ![](https://raw.githubusercontent.com/gaspardringuenet/echolabel/main/images/cmap_RGB.svg)
 ![](https://raw.githubusercontent.com/gaspardringuenet/echolabel/main/images/cmap_OKLab.svg)
-*Visualization of multifrequency composite echogram colormaps available in Echolabel.*
+*Visualization of multifrequency composite echogram colormaps available in Echolabel. Red dashed line (resp. red dot) corresponds
+to the case in which f2 (resp. f2 and f1) is ouf NA, which typically happens in acoustic dataset because of frequency-dependent
+range limitations.*
 
 ## Configuration
 
