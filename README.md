@@ -83,6 +83,9 @@ hue and chroma.
 to the case in which f2 (resp. f2 and f1) is NA, which typically happens in acoustic dataset because of frequency-dependent
 range limitations.*
 
+![](https://raw.githubusercontent.com/gaspardringuenet/echolabel/main/images/gui_screenshot_oklab.png)
+*LabelMe GUI open on OKLab composite echogram image.*
+
 ## Configuration
 
 Run `echolabel config` to create a user configuration file, then edit its YAML.
