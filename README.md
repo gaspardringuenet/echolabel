@@ -131,7 +131,7 @@ datavars:
     zvar: depth # Range axis dimension
     cvar: channel # Channel dimension
     fvar: null # (Optional) Frequency coordinate. Defaults to cvar.
-    fvar_unit_scale: 1000 # (Optional) Frequency unit conversion factor to Hz (1000 if coord is in kHz). Defaults to 1.
+    fvar_unit_scale: 1 # (Optional) Frequency unit conversion factor to Hz (1000 if coord is in kHz)
 ```
 
 In addition to the configuration settings, Echolabel will try the Echopype convention
