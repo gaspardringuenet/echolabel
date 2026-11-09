@@ -26,13 +26,21 @@ This installs the `echolabel` command.
 
 ## Quick start
 
+To download demo data and run with default parameters:
+
+```bash
+echolabel demo
+```
+
+Aside from demo, the `process` command is used to run the application:
+
 ```bash
 echolabel process -s data.zarr -o regions.csv -f 38000 --cmap magma
 ```
 
 - `-s/--source`: an echogram source (`.nc`, `.zarr`, or a directory of `.nc` files).
 - `-o/--output`: the region CSV to create, or to edit if it already exists.
-- `-f/--freqs-hz`: nominal frequency(ies) to use, repeatable.
+- `-f/--freq-hz`: nominal frequency(ies) to use, repeatable.
 - `--vmin`, `--vmax`, `--cmap`: display settings for the echogram images.
 - `--reuse-images/--no-reuse-images`: reuse cached echogram images.
 - `-c/--config`: optional configuration file.
@@ -101,6 +109,35 @@ Echolabel rebuilds if the source path, source metadata, settings, or required
 cached files differ. Directory metadata may not detect changes inside an existing
 Zarr store or NetCDF directory: use `--no-reuse-images` after modifying source data.
 
+### Data formats & variable names
+
+The acoustic dataset input as the `--source` argument can be either a Zarr store,
+a NetCDF file, or a directory containing several NetCDF files (which must be
+compatible with concatenation on the time axis).
+
+As naming conventions vary accross datasets, Echolabel will try to find the
+acoustic variable to plot and the time, depth and channel dimensions. The `--freq-hz`
+argument maps to the optional frequency coordinate (which must be indexed by the
+channel dimension, and defaults to it). In case frequency is encoded in kHz in the
+dataset, a scaling factor can be set up. 
+
+The user can edit all those in the configuration file. The following is used as
+default:
+
+```yaml
+datavars:
+    acouvar: Sv # Acoustic variable to display on echogram
+    tvar: time # Ping axis dimension
+    zvar: depth # Range axis dimension
+    cvar: channel # Channel dimension
+    fvar: null # (Optional) Frequency coordinate. Defaults to cvar.
+    fvar_unit_scale: 1000 # (Optional) Frequency unit conversion factor to Hz (1000 if coord is in kHz). Defaults to 1.
+```
+
+In adsition to the configuration settings, Echolabel will try the Echopype convention
+("Sv", "ping_time", "depth", "channel", "frequency_nominal", no scaling) and the
+IMOS convention ("Sv", "time", "depth", "channel", None, 1000).
+
 ## Python API
 
 ```python
@@ -143,6 +180,14 @@ Each exported row contains:
 - `region_bbox_*`, recomputed from the geometry
 
 Columns missing from the source CSV are added on export.
+
+The output is immediately usable with Echoregions:
+
+```python
+import echoregions as er
+
+regions = er.read_regions_csv("regions.csv")
+```
 
 ## Limit-case behaviour
 

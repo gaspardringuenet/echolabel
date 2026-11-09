@@ -137,7 +137,6 @@ def open_dataset(
     Supports acoustic data conventions:
     - IMOS SOOP-BA ('time', 'depth', 'channel' - containing freq in kHz, 'Sv')
     - Echopype ('ping_time', 'depth', 'channel' - str, 'frequency_nominal' - in Hz, 'Sv')
-    - Custom (TODO)
     """
 
     if path.is_dir():

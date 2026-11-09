@@ -76,7 +76,7 @@ def demo(output_dir):
     then editing the YAML file. User config will be automatically detected.""",
 )
 @click.option(
-    "--freqs-hz",
+    "--freq-hz",
     "-f",
     multiple=True,
     type=click.FLOAT,
@@ -107,7 +107,7 @@ def process(
     source,
     output,
     config,
-    freqs_hz,
+    freq_hz,
     frame_width,
     vmin,
     vmax,
@@ -133,8 +133,8 @@ def process(
 
     # Override with CLI arguments
     cli_overrides = {}
-    if freqs_hz:
-        cli_overrides["channels_frequency_nominal"] = list(freqs_hz)
+    if freq_hz:
+        cli_overrides["channels_frequency_nominal"] = list(freq_hz)
     if frame_width is not None:
         cli_overrides["frame_width"] = frame_width
     if vmin is not None:
