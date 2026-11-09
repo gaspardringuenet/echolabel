@@ -3,7 +3,7 @@
 > A [Labelme](https://github.com/wkentaro/labelme) wrapper enabling fast echogram annotation with CSV outputs compatible
 > with [Echoregions](https://github.com/echostack-org/echoregions/).
 
-![](https://raw.githubusercontent.com/gaspardringuenet/echolabel/main/gui-screenshot.png)
+![](https://raw.githubusercontent.com/gaspardringuenet/echolabel/main/images/gui_screenshot.png)
 
 ## Installation
 
@@ -59,9 +59,9 @@ The rotated `OKLab` encoding uses the maximum Sv for lightness and the differenc
 between the second and third frequencies and the first (reference) frequency for
 hue and chroma. Its rotation is configurable.
 
-![](https://raw.githubusercontent.com/gaspardringuenet/echolabel/main/cmap_RGB.svg)
+![](https://raw.githubusercontent.com/gaspardringuenet/echolabel/main/images/cmap_RGB.svg)
 
-![OKLab colormap with -f 38000 -f 70000 -f 120000](https://raw.githubusercontent.com/gaspardringuenet/echolabel/main/cmap_OKLab.svg)
+![OKLab colormap with -f 38000 -f 70000 -f 120000](https://raw.githubusercontent.com/gaspardringuenet/echolabel/main/images/cmap_OKLab.svg)
 
 Run `echolabel config` to create a user configuration file, then edit its YAML.
 For example, the OKLab defaults are:

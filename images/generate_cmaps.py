@@ -12,7 +12,7 @@ from echolabel.config.config import OKLabSettings, resolve_oklab_settings
 from echolabel.utils.echograms import RGB, Encoding, OKLab, plot_colormap
 
 MAX_SVS: list[int] = [-90, -80, -70, -60, -50]  # max Sv [dB] of the colormap panels
-SAVE_DIR: Path = Path(".")
+SAVE_DIR: Path = Path(__file__).parent
 
 
 def main():
