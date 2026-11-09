@@ -4,7 +4,7 @@
 > with [Echoregions](https://github.com/echostack-org/echoregions/).
 
 ![](https://raw.githubusercontent.com/gaspardringuenet/echolabel/main/images/gui_screenshot.png)
-*LabelMe GUI openned on RGB composite echogram image.*
+*LabelMe GUI open on RGB composite echogram image.*
 
 ## Installation
 
