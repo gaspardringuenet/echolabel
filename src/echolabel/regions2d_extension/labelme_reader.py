@@ -1,18 +1,24 @@
 import glob
 import json
+from collections.abc import Mapping, Sequence
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
+from typing import Any, Literal, NotRequired, TypedDict
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 from echoregions.utils.io import check_file
 from shapely import unary_union
+from shapely.geometry import Polygon
+from shapely.geometry.base import BaseGeometry
 
 from ..config.cache import CachePathsConfig
 from ..core.manifest import ImagesDatasetManifest
 from .shapes import (
     SHAPE_RESERVED_KEYS,
     ImageGrid,
+    ShapeType,
     flags_to_dict,
     is_box,
     is_missing,
@@ -26,7 +32,45 @@ from .shapes import (
     seconds_to_time,
 )
 
-CUSTOM_COLUMNS = [
+type RegionRow = dict[Any, Any]
+type ShapeComparisonKey = tuple[str, tuple[tuple[float, ...], ...], str, int | None, str, tuple[str, ...]]
+
+
+class LabelMeShapeEntry(TypedDict):
+    region_id: Any
+    label: str
+    points: list[list[float]]
+    shape_type: ShapeType
+    geometry: BaseGeometry
+    filename: str
+    group_id: Any
+    description: str
+    flags: list[str]
+    extras: dict[str, Any]
+    clipped: NotRequired[bool]
+
+
+class ClippedShapeEntry(TypedDict):
+    label: str
+    geometry: BaseGeometry
+    group_id: Any
+    description: str
+    flags: list[str]
+    extras: dict[str, Any]
+    shape_type: NotRequired[ShapeType]
+    clipped: NotRequired[Literal[True]]
+
+
+type ShapeEntry = LabelMeShapeEntry | ClippedShapeEntry
+
+
+class LabelGroup(TypedDict):
+    geoms: list[BaseGeometry]
+    meta: ShapeEntry
+    rectangles: bool
+
+
+CUSTOM_COLUMNS: list[str] = [
     "region_id",
     "region_name",
     "region_class",
@@ -53,8 +97,10 @@ def parse_echolabel(
     If `original_df` (the regions CSV read at the start of the session) is
     given, region identity is preserved:
     -   A region whose shapes are unchanged is written back as its original row.
-    -   An edited region gets its rows rebuilt from the current shapes. The part
-        outside all images (never shown in LabelMe) is kept.
+    -   An edited region is rebuilt from its current shapes. Its part outside
+        all images is kept only if every original visible shape remains
+        unchanged; deleting or modifying an original visible shape drops it.
+        Deleting all visible shapes removes the region, including that part.
     -   Shapes without a known `region_id` become new regions.
     """
     if manifest is None:
@@ -62,7 +108,8 @@ def parse_echolabel(
 
     grids = load_image_grids(manifest, cache_cfg.img_dataset)
 
-    shapes_by_id: dict = {}
+    # Build dict with list of shape entries for each region id (incl. None)
+    shapes_by_id: dict[Any, list[LabelMeShapeEntry]] = {}
     for labelme_file in sorted(glob.glob(str(cache_cfg.labelme / "*.json"))):
         json_data = _load_json(labelme_file)
         for entry in _shape_entries(json_data, grids):
@@ -76,7 +123,7 @@ def parse_echolabel(
         if col not in columns:
             columns.append(col)
     next_id = _next_free_id(original_df, shapes_by_id)
-    rows: list[dict] = []
+    rows: list[RegionRow] = []
 
     if original_df is not None:
         for _, orig in original_df.iterrows():
@@ -112,20 +159,23 @@ def parse_echolabel(
     return data
 
 
-def _next_free_id(original_df: pd.DataFrame | None, shapes_by_id: dict) -> int:
-    ids = []
+def _next_free_id(
+    original_df: pd.DataFrame | None,
+    shapes_by_id: Mapping[Any, Sequence[LabelMeShapeEntry]],
+) -> int:
+    ids: list[int] = []
     if original_df is not None and "region_id" in original_df.columns:
         ids += [int(i) for i in original_df["region_id"].dropna()]
     ids += [int(i) for i in shapes_by_id if i is not None and not is_missing(i)]
     return max(ids, default=0) + 1
 
 
-def _shape_entries(data: dict, grids: list[ImageGrid]) -> list[dict]:
-    """Shapes of one LabelMe JSON file, converted to real-world geometries"""
+def _shape_entries(data: dict[str, Any], grids: list[ImageGrid]) -> list[LabelMeShapeEntry]:
+    """Extract polygon and rectangle shapes, converting their points to real-world geometries."""
     img_filename = Path(data["imagePath"]).name
     grid = next(g for g in grids if g.filename == img_filename)
 
-    entries = []
+    entries: list[LabelMeShapeEntry] = []
     for shape in data["shapes"]:
         if shape["shape_type"] not in ("polygon", "rectangle"):
             continue
@@ -147,7 +197,15 @@ def _shape_entries(data: dict, grids: list[ImageGrid]) -> list[dict]:
     return entries
 
 
-def _expected_key(filename: str, points: list, label: str, group_id, description: str, flags: list) -> tuple:
+def _expected_key(
+    filename: str,
+    points: list[list[float]],
+    label: str,
+    group_id: Any,
+    description: str,
+    flags: Sequence[str],
+) -> ShapeComparisonKey:
+    """Canonical comparison key used to detect unchanged LabelMe shapes."""
     return (
         filename,
         tuple(tuple(p) for p in points),
@@ -158,8 +216,20 @@ def _expected_key(filename: str, points: list, label: str, group_id, description
     )
 
 
-def _reconcile_region(orig: dict, current: list[dict], grids: list[ImageGrid], next_id: int) -> tuple[list[dict], int]:
-    """Rows for one original region, given its current LabelMe shapes."""
+def _reconcile_region(
+    orig: RegionRow,
+    current: Sequence[LabelMeShapeEntry],
+    grids: list[ImageGrid],
+    next_id: int,
+) -> tuple[list[RegionRow], int]:
+    """Reconcile one original row with its current LabelMe shapes.
+
+    An unrepresentable region or one with unchanged shapes is returned as its
+    original row. Otherwise, rows are rebuilt from the current shapes. The
+    outside-image part is preserved only when every expected visible shape is
+    still present unchanged; if any is missing or changed, that part is
+    dropped. If no visible shapes remain, the region is removed entirely.
+    """
     try:
         geom = row_geometry(orig["time"], orig["depth"])
     except (ValueError, TypeError):
@@ -172,11 +242,11 @@ def _reconcile_region(orig: dict, current: list[dict], grids: list[ImageGrid], n
     flags = list(flags_to_dict(orig.get("flags")).keys())
     shape_type = "rectangle" if is_rectangle_row(orig.get("shape_type"), orig["time"], orig["depth"]) else "polygon"
 
-    expected = {
+    expected: set[ShapeComparisonKey] = {
         _expected_key(s.filename, s.points, label, group_id, description, flags)
         for s in region_to_shapes(geom, grids, shape_type)
     }
-    actual = {
+    actual: set[ShapeComparisonKey] = {
         _expected_key(e["filename"], e["points"], e["label"], e["group_id"], e["description"], e["flags"])
         for e in current
     }
@@ -191,25 +261,25 @@ def _reconcile_region(orig: dict, current: list[dict], grids: list[ImageGrid], n
 
     # Edited region: keep the part outside any image, add the shapes drawn by the user.
     # If a visible shape was deleted, the outside part is dropped too (deletion stays simple to follow).
-    entries = list(current)
+    entries: list[ShapeEntry] = list(current)
     if expected - actual:
         _warn_outside_dropped(orig["region_id"], polygon_parts(outside))
     elif polygon_parts(outside):
         entries.append(
-            {
-                "label": label,
-                "geometry": outside,
-                "clipped": True,
-                "group_id": group_id,
-                "description": description,
-                "flags": flags,
-                "extras": {},
-            }
+            ClippedShapeEntry(
+                label=label,
+                geometry=outside,
+                clipped=True,
+                group_id=group_id,
+                description=description,
+                flags=flags,
+                extras={},
+            )
         )
     return _group_rows(entries, orig, orig["region_id"], next_id)
 
 
-def _warn_outside_dropped(region_id, outside_parts: list) -> None:
+def _warn_outside_dropped(region_id: Any, outside_parts: Sequence[Polygon]) -> None:
     if outside_parts:
         print(
             f"Warning: region {region_id} was edited by deleting visible shapes; "
@@ -217,23 +287,29 @@ def _warn_outside_dropped(region_id, outside_parts: list) -> None:
         )
 
 
-def _group_rows(entries: list[dict], orig: dict | None, rid, next_id: int) -> tuple[list[dict], int]:
+def _group_rows(
+    entries: Sequence[ShapeEntry],
+    orig: RegionRow | None,
+    rid: Any,
+    next_id: int,
+) -> tuple[list[RegionRow], int]:
     """
     Build rows from shape entries of one region: shapes are unioned per label,
     each polygon part becomes a row. A part is a rectangle only when all its
     shapes are rectangles and the union is still an axis-aligned box.
     The first row reuses `rid` (if not None).
     """
-    groups: dict[str, dict] = {}
+    groups: dict[str, LabelGroup] = {}
     for e in entries:
         group = groups.setdefault(e["label"], {"geoms": [], "meta": e, "rectangles": True})
         group["geoms"].append(e["geometry"])
         if not e.get("clipped"):
             group["rectangles"] &= e.get("shape_type") == "rectangle"
 
-    rows = []
+    rows: list[RegionRow] = []
     for label, group in groups.items():
-        meta = dict(group["meta"], shape_type="rectangle" if group["rectangles"] else "polygon")
+        meta: dict[str, Any] = dict(group["meta"])
+        meta["shape_type"] = "rectangle" if group["rectangles"] else "polygon"
         for part in polygon_parts(unary_union(group["geoms"])):
             if rid is not None and not rows:
                 part_id = rid
@@ -244,12 +320,21 @@ def _group_rows(entries: list[dict], orig: dict | None, rid, next_id: int) -> tu
     return rows, next_id
 
 
-def _build_row(geom, label: str, region_id, meta: dict, orig: dict | None) -> dict:
+def _build_row(
+    geom: BaseGeometry,
+    label: str,
+    region_id: Any,
+    meta: Mapping[str, Any],
+    orig: RegionRow | None,
+) -> RegionRow:
     """
     One output row for a region part. Unmapped columns (including region_class)
     come unchanged from the original row; region_bbox_* are recomputed from the geometry.
     Rectangles are exported as their four corners.
     """
+    if not isinstance(geom, Polygon):
+        raise TypeError(f"Expected a polygon geometry, got {geom.geom_type}")
+
     row = dict(orig) if orig is not None else dict(meta.get("extras", {}))
 
     minx, miny, maxx, maxy = geom.bounds
@@ -259,7 +344,7 @@ def _build_row(geom, label: str, region_id, meta: dict, orig: dict | None) -> di
     else:
         coords = list(geom.exterior.coords)[:-1]
     time = seconds_to_time([c[0] for c in coords])
-    depth = np.array([c[1] for c in coords], dtype=float)
+    depth: npt.NDArray[np.float64] = np.array([c[1] for c in coords], dtype=float)
 
     group_id = meta.get("group_id")
     description = meta.get("description") or ""
@@ -283,7 +368,7 @@ def _build_row(geom, label: str, region_id, meta: dict, orig: dict | None) -> di
 
 
 def parse_labelme(
-    data: dict,
+    data: dict[str, Any],
     manifest: ImagesDatasetManifest,
     cache_dir: str | Path,
 ) -> pd.DataFrame:
@@ -292,11 +377,13 @@ def parse_labelme(
     an original CSV). Shapes keep their `region_id` when present.
     """
     grids = load_image_grids(manifest, Path(cache_dir))
-    rows = [_build_row(e["geometry"], e["label"], e["region_id"], e, None) for e in _shape_entries(data, grids)]
+    rows: list[RegionRow] = [
+        _build_row(e["geometry"], e["label"], e["region_id"], e, None) for e in _shape_entries(data, grids)
+    ]
     return pd.DataFrame(rows)
 
 
-def _load_json(input_file: str) -> dict:
+def _load_json(input_file: str) -> dict[str, Any]:
     """Load JSON file. Check file validity using Echoregions' IO utility."""
 
     # Check for validity of input file
@@ -304,6 +391,6 @@ def _load_json(input_file: str) -> dict:
 
     # Read files
     with open(input_file) as f:
-        data: dict = json.load(f)
+        data: dict[str, Any] = json.load(f)
 
     return data

@@ -9,8 +9,10 @@ exported without edits maps back to exactly the same pixel points.
 import datetime
 import math
 import sys
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, Literal, TypedDict
 
 import numpy as np
 import numpy.typing as npt
@@ -21,11 +23,25 @@ from shapely.geometry.base import BaseGeometry
 
 from ..core.manifest import ImageMetadata, ImagesDatasetManifest
 
+type ShapeType = Literal["polygon", "rectangle"]
+type JSONValue = None | bool | int | float | str | Sequence[JSONValue] | Mapping[str, JSONValue]
+
+
+class LabelMeAnnotation(TypedDict):
+    version: str
+    flags: dict[str, bool]
+    shapes: list[dict[str, JSONValue]]
+    imagePath: str
+    imageData: None
+    imageHeight: int
+    imageWidth: int
+
+
 # Columns of the regions CSV that are not passed on to LabelMe shapes.
 # Mapped: region_name -> label, time/depth -> points, shape_type -> LabelMe shape type,
 # flags/group_id/description -> shape fields.
 # Derived on export: region_bbox_* (recomputed from the clipped geometry), echolabel_version.
-MAPPED_COLUMNS = {
+MAPPED_COLUMNS: set[str] = {
     "region_id",
     "region_name",
     "time",
@@ -41,9 +57,18 @@ MAPPED_COLUMNS = {
     "flags",
 }
 
-SHAPE_RESERVED_KEYS = {"label", "points", "shape_type", "mask", "flags", "group_id", "description", "region_id"}
+SHAPE_RESERVED_KEYS: set[str] = {
+    "label",
+    "points",
+    "shape_type",
+    "mask",
+    "flags",
+    "group_id",
+    "description",
+    "region_id",
+}
 
-NONAME_LABEL = ".NONAME"
+NONAME_LABEL: str = ".NONAME"
 
 
 @dataclass(frozen=True)
@@ -71,12 +96,12 @@ class ShapeSpec:
     filename: str
     points: list[list[float]]
     geometry: BaseGeometry
-    shape_type: str = "polygon"
+    shape_type: ShapeType = "polygon"
 
 
 def load_image_grids(manifest: ImagesDatasetManifest, cache_dir: Path) -> list[ImageGrid]:
     """Load the real-world grid of every image in the manifest."""
-    grids = []
+    grids: list[ImageGrid] = []
     for img_meta in manifest.images:
         time_coord, depth_coord = img_meta.load_coordinates(cache_dir)
         grids.append(
@@ -96,18 +121,18 @@ def find_grid(grids: list[ImageGrid], filename: str) -> ImageGrid:
     raise ValueError(f"Image {filename} not found in manifest")
 
 
-def time_to_seconds(values) -> npt.NDArray[np.floating]:
+def time_to_seconds(values: npt.ArrayLike) -> npt.NDArray[np.float64]:
     """datetime-like values (datetime64, strings or objects) -> float seconds since epoch"""
     arr = np.asarray(values, dtype="datetime64[ns]")
     return arr.astype(np.int64) / 1e9
 
 
-def seconds_to_time(values) -> npt.NDArray[np.datetime64]:
+def seconds_to_time(values: npt.ArrayLike) -> npt.NDArray[np.datetime64]:
     """Float seconds since epoch -> datetime64[ns]"""
     return np.round(np.asarray(values, dtype=float) * 1e9).astype(np.int64).astype("datetime64[ns]")
 
 
-def is_missing(value) -> bool:
+def is_missing(value: Any) -> bool:
     """True for None / NaN / NaT scalars. Arrays and lists are never missing."""
     if isinstance(value, (list, tuple, np.ndarray)):
         return False
@@ -117,7 +142,7 @@ def is_missing(value) -> bool:
         return False
 
 
-def label_of(row: pd.Series | dict) -> str:
+def label_of(row: pd.Series | Mapping[str, Any]) -> str:
     """LabelMe label from the region_name column, with a fallback when absent."""
     value = row.get("region_name")
     if is_missing(value) or str(value) == "":
@@ -125,7 +150,7 @@ def label_of(row: pd.Series | dict) -> str:
     return str(value)
 
 
-def row_geometry(time_values, depth_values) -> BaseGeometry:
+def row_geometry(time_values: npt.ArrayLike, depth_values: npt.ArrayLike) -> BaseGeometry:
     """Real-world geometry of a region row (valid polygon, in seconds x metres)."""
     times = time_to_seconds(time_values)
     depths = np.asarray(depth_values, dtype=float)
@@ -139,7 +164,11 @@ def polygon_parts(geom: BaseGeometry) -> list[Polygon]:
     return [p for p in get_parts(geom) if isinstance(p, Polygon) and p.area > 0]
 
 
-def is_rectangle_row(shape_type, time_values, depth_values) -> bool:
+def is_rectangle_row(
+    shape_type: object,
+    time_values: npt.ArrayLike,
+    depth_values: npt.ArrayLike,
+) -> bool:
     """
     True when a CSV row is an axis-aligned rectangle: shape_type == "rectangle"
     and exactly the four corners of a box (4 points, 2 distinct times, 2 distinct depths).
@@ -161,7 +190,11 @@ def is_box(geom: BaseGeometry) -> bool:
     return abs(geom.area - box(*geom.bounds).area) <= 1e-9 * geom.area
 
 
-def region_to_shapes(geom: BaseGeometry, grids: list[ImageGrid], shape_type: str = "polygon") -> list[ShapeSpec]:
+def region_to_shapes(
+    geom: BaseGeometry,
+    grids: list[ImageGrid],
+    shape_type: ShapeType = "polygon",
+) -> list[ShapeSpec]:
     """
     Split a real-world region across images and clip it to each image extent.
 
@@ -170,7 +203,7 @@ def region_to_shapes(geom: BaseGeometry, grids: list[ImageGrid], shape_type: str
     range is clipped away (kept only in the CSV). Clipping a rectangle by an
     image box gives a rectangle, so rectangles stay rectangles.
     """
-    specs = []
+    specs: list[ShapeSpec] = []
     for grid in grids:
         clipped = geom.intersection(grid.box)
         for part in polygon_parts(clipped):
@@ -185,7 +218,11 @@ def region_to_shapes(geom: BaseGeometry, grids: list[ImageGrid], shape_type: str
     return specs
 
 
-def _geometry_to_pixels(part: Polygon, grid: ImageGrid, shape_type: str = "polygon") -> list[list[float]]:
+def _geometry_to_pixels(
+    part: Polygon,
+    grid: ImageGrid,
+    shape_type: ShapeType = "polygon",
+) -> list[list[float]]:
     corners = list(part.exterior.coords)[:-1]
     # Fractional pixel positions (LabelMe accepts floats). Linear interpolation is a
     # monotonic map on each axis, so the polygon keeps its topology (no self-intersections).
@@ -197,7 +234,7 @@ def _geometry_to_pixels(part: Polygon, grid: ImageGrid, shape_type: str = "polyg
     return [[float(x), float(y)] for x, y in zip(xs, ys)]
 
 
-def pixels_to_geometry(points: list[list[float]], shape_type: str, grid: ImageGrid) -> BaseGeometry:
+def pixels_to_geometry(points: list[list[float]], shape_type: ShapeType, grid: ImageGrid) -> BaseGeometry:
     """LabelMe shape points (fractional pixels) -> real-world geometry, inverse of _geometry_to_pixels."""
     arr = np.asarray(points, dtype=float).reshape(-1, 2)
     times = np.interp(arr[:, 0], np.arange(len(grid.times)), grid.times)
@@ -215,16 +252,16 @@ def csv_safe(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def json_safe(value):
+def json_safe(value: Any) -> JSONValue:
     """Convert a pandas / numpy value into something json.dump accepts."""
+    if is_missing(value):
+        return None
     if isinstance(value, (list, tuple, np.ndarray)):
         return [json_safe(v) for v in value]
     if isinstance(value, (pd.Timestamp, np.datetime64, datetime.datetime)):
-        return str(pd.Timestamp(value).isoformat())
+        return str(pd.Timestamp(value).isoformat())  # type: ignore (NaT filtered out by is_missing)
     if isinstance(value, np.generic):
         value = value.item()
-    if is_missing(value):
-        return None
     if isinstance(value, float) and math.isnan(value):
         return None
     if isinstance(value, (str, int, float, bool)) or value is None:
@@ -232,7 +269,7 @@ def json_safe(value):
     return str(value)
 
 
-def flags_to_dict(value) -> dict[str, bool]:
+def flags_to_dict(value: Any) -> dict[str, bool]:
     """Echoregions flags (list, '[]' string, or NaN) -> LabelMe flags dict."""
     if is_missing(value):
         return {}
@@ -244,5 +281,5 @@ def flags_to_dict(value) -> dict[str, bool]:
     return {name: True for name in names}
 
 
-def flags_to_list(flags: dict) -> list[str]:
+def flags_to_list(flags: Mapping[str, Any] | None) -> list[str]:
     return [k for k, v in (flags or {}).items() if v]

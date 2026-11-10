@@ -166,7 +166,13 @@ def build_images_dataset(
         viz_params=viz_params,
         images=images_metadata,
         cache_key=image_cache_key(
-            source, datavars_config, freqs_hz, frame_width, range_samples_slice, bin_mask, **viz_params
+            source,
+            datavars_config,
+            freqs_hz,
+            frame_width,
+            range_samples_slice,
+            bin_mask,
+            **viz_params,
         ),
     )
     manifest.save(output_dir)

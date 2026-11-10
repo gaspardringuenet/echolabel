@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 from echoregions.regions2d import Regions2D
@@ -6,6 +7,9 @@ from echoregions.regions2d import Regions2D
 from ..core.manifest import ImagesDatasetManifest
 from .shapes import (
     MAPPED_COLUMNS,
+    JSONValue,
+    LabelMeAnnotation,
+    ShapeType,
     flags_to_dict,
     is_missing,
     is_rectangle_row,
@@ -21,8 +25,8 @@ def regions2d_to_labelme(
     regions: Regions2D | pd.DataFrame,
     manifest: ImagesDatasetManifest,
     img_dataset_dir: Path,
-    labelme_version="6.0.0",
-) -> dict:
+    labelme_version: str = "6.0.0",
+) -> dict[str, LabelMeAnnotation]:
     """
     Writes the regions of a Regions2D object into LabelMe JSON annotations.
 
@@ -37,7 +41,7 @@ def regions2d_to_labelme(
 
     Returns a dict mapping JSON filename to the LabelMe annotation dict.
     """
-    labelme_data: dict = {}
+    labelme_data: dict[str, LabelMeAnnotation] = {}
     grids = load_image_grids(manifest, img_dataset_dir)
 
     for grid in grids:
@@ -54,20 +58,20 @@ def regions2d_to_labelme(
 
     df: pd.DataFrame = regions if isinstance(regions, pd.DataFrame) else pd.DataFrame(regions.data.copy())
     passthrough_cols = [c for c in df.columns if c not in MAPPED_COLUMNS]
-    parsed_ids = []
-    failed_ids = []
+    parsed_ids: list[Any] = []
+    failed_ids: list[Any] = []
 
     for _, row in df.iterrows():
         region_id = row["region_id"]
         try:
-            geom = row_geometry(row["time"], row["depth"])
+            geom = row_geometry(row.at["time"], row.at["depth"])
         except (ValueError, TypeError) as e:
             print(f"Warning: region {region_id} skipped, invalid geometry ({e})")
             failed_ids.append(region_id)
             continue
 
-        shape_type = "polygon"
-        if is_rectangle_row(row.get("shape_type"), row["time"], row["depth"]):
+        shape_type: ShapeType = "polygon"
+        if is_rectangle_row(row.get("shape_type"), row.at["time"], row.at["depth"]):
             shape_type = "rectangle"
         elif str(row.get("shape_type")) == "rectangle":
             print(
@@ -80,7 +84,7 @@ def regions2d_to_labelme(
             continue
 
         for spec in specs:
-            shape = {
+            shape: dict[str, JSONValue] = {
                 "label": label_of(row),
                 "points": spec.points,
                 "group_id": None if is_missing(row.get("group_id")) else int(row["group_id"]),
